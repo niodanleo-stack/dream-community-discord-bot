@@ -1,9 +1,24 @@
+```js
+const express = require("express");
 const {
   Client,
   GatewayIntentBits,
   PermissionFlagsBits
 } = require("discord.js");
 
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Petit serveur web pour que Render considère le service comme actif
+app.get("/", (req, res) => {
+  res.send("🌙 Dream Community Bot est en ligne !");
+});
+
+app.listen(PORT, () => {
+  console.log(`🌐 Serveur web actif sur le port ${PORT}`);
+});
+
+// Bot Discord
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -35,7 +50,7 @@ client.on("messageCreate", async (message) => {
     );
   }
 
-  // 🌙 INFORMATIONS
+  // 🌙 DREAM COMMUNITY
   if (contenu === "!dream") {
     return message.reply(
       "🌙✨ **DREAM COMMUNITY — SAISON 3** ✨🌙\n\n" +
@@ -65,7 +80,7 @@ client.on("messageCreate", async (message) => {
     );
   }
 
-  // 🔇 TIMEOUT
+  // 🔇 MUTE / TIMEOUT
   if (contenu.startsWith("!mute ")) {
     if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
       return message.reply("❌ Tu n'as pas la permission.");
@@ -78,12 +93,16 @@ client.on("messageCreate", async (message) => {
     }
 
     try {
-      await membre.timeout(10 * 60 * 1000, "Sanction Dream Community");
+      await membre.timeout(
+        10 * 60 * 1000,
+        "Sanction Dream Community"
+      );
 
       return message.reply(
         `🔇 ${membre} a été mis en silence pendant **10 minutes**.`
       );
-    } catch {
+    } catch (erreur) {
+      console.error(erreur);
       return message.reply("❌ Impossible d'appliquer la sanction.");
     }
   }
@@ -102,8 +121,12 @@ client.on("messageCreate", async (message) => {
 
     try {
       await membre.kick("Sanction Dream Community");
-      return message.reply(`👢 ${membre.user.tag} a été expulsé.`);
-    } catch {
+
+      return message.reply(
+        `👢 ${membre.user.tag} a été expulsé.`
+      );
+    } catch (erreur) {
+      console.error(erreur);
       return message.reply("❌ Impossible d'expulser ce membre.");
     }
   }
@@ -121,12 +144,19 @@ client.on("messageCreate", async (message) => {
     }
 
     try {
-      await membre.ban({ reason: "Sanction Dream Community" });
-      return message.reply(`🚫 ${membre.user.tag} a été banni.`);
-    } catch {
+      await membre.ban({
+        reason: "Sanction Dream Community"
+      });
+
+      return message.reply(
+        `🚫 ${membre.user.tag} a été banni.`
+      );
+    } catch (erreur) {
+      console.error(erreur);
       return message.reply("❌ Impossible de bannir ce membre.");
     }
   }
 });
 
 client.login(process.env.DISCORD_TOKEN);
+```
