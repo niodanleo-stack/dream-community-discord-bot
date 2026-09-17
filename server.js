@@ -1,4 +1,3 @@
-```js
 const express = require("express");
 const {
   Client,
@@ -9,16 +8,14 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Petit serveur web pour que Render considère le service comme actif
 app.get("/", (req, res) => {
-  res.send("🌙 Dream Community Bot est en ligne !");
+  res.send("Dream Community Bot est en ligne !");
 });
 
 app.listen(PORT, () => {
-  console.log(`🌐 Serveur web actif sur le port ${PORT}`);
+  console.log("Serveur web actif sur le port " + PORT);
 });
 
-// Bot Discord
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -29,7 +26,7 @@ const client = new Client({
 });
 
 client.once("ready", () => {
-  console.log(`🌙 Dream Community connecté en tant que ${client.user.tag}`);
+  console.log("Dream Community connecte en tant que " + client.user.tag);
 });
 
 client.on("messageCreate", async (message) => {
@@ -37,29 +34,26 @@ client.on("messageCreate", async (message) => {
 
   const contenu = message.content.toLowerCase();
 
-  // 📜 RÈGLEMENT
   if (contenu === "!reglement") {
     return message.reply(
-      "📜 **RÈGLEMENT — DREAM COMMUNITY**\n\n" +
+      "📜 **REGLEMENT — DREAM COMMUNITY**\n\n" +
       "🤝 Respect obligatoire\n" +
-      "🚫 Pas de harcèlement\n" +
+      "🚫 Pas de harcelement\n" +
       "🚫 Pas d'insultes ou menaces\n" +
       "🚫 Pas de spam\n" +
-      "🔞 Pas de contenu inapproprié\n" +
+      "🔞 Pas de contenu inapproprie\n" +
       "⚠️ Le Staff peut sanctionner en cas d'infraction."
     );
   }
 
-  // 🌙 DREAM COMMUNITY
   if (contenu === "!dream") {
     return message.reply(
-      "🌙✨ **DREAM COMMUNITY — SAISON 3** ✨🌙\n\n" +
-      "Une communauté pour discuter, partager et participer à des événements !\n\n" +
+      "🌙 **DREAM COMMUNITY — SAISON 3** 🌙\n\n" +
+      "Une communaute pour discuter, partager et participer a des evenements !\n\n" +
       "🔨 Saison 3 : en construction !"
     );
   }
 
-  // ⚠️ WARN
   if (contenu.startsWith("!warn ")) {
     if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
       return message.reply("❌ Tu n'as pas la permission.");
@@ -73,14 +67,16 @@ client.on("messageCreate", async (message) => {
 
     const raison =
       message.content.split(" ").slice(2).join(" ") ||
-      "Aucune raison précisée.";
+      "Aucune raison precisee.";
 
     return message.reply(
-      `⚠️ **Avertissement**\n${membre} a reçu un avertissement.\n📝 Raison : ${raison}`
+      "⚠️ **Avertissement**\n" +
+      membre +
+      " a reçu un avertissement.\n📝 Raison : " +
+      raison
     );
   }
 
-  // 🔇 MUTE / TIMEOUT
   if (contenu.startsWith("!mute ")) {
     if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
       return message.reply("❌ Tu n'as pas la permission.");
@@ -99,7 +95,7 @@ client.on("messageCreate", async (message) => {
       );
 
       return message.reply(
-        `🔇 ${membre} a été mis en silence pendant **10 minutes**.`
+        "🔇 " + membre + " a ete mis en silence pendant **10 minutes**."
       );
     } catch (erreur) {
       console.error(erreur);
@@ -107,7 +103,6 @@ client.on("messageCreate", async (message) => {
     }
   }
 
-  // 👢 KICK
   if (contenu.startsWith("!kick ")) {
     if (!message.member.permissions.has(PermissionFlagsBits.KickMembers)) {
       return message.reply("❌ Tu n'as pas la permission.");
@@ -123,7 +118,7 @@ client.on("messageCreate", async (message) => {
       await membre.kick("Sanction Dream Community");
 
       return message.reply(
-        `👢 ${membre.user.tag} a été expulsé.`
+        "👢 " + membre.user.tag + " a ete expulse."
       );
     } catch (erreur) {
       console.error(erreur);
@@ -131,7 +126,6 @@ client.on("messageCreate", async (message) => {
     }
   }
 
-  // 🚫 BAN
   if (contenu.startsWith("!ban ")) {
     if (!message.member.permissions.has(PermissionFlagsBits.BanMembers)) {
       return message.reply("❌ Tu n'as pas la permission.");
@@ -149,7 +143,7 @@ client.on("messageCreate", async (message) => {
       });
 
       return message.reply(
-        `🚫 ${membre.user.tag} a été banni.`
+        "🚫 " + membre.user.tag + " a ete banni."
       );
     } catch (erreur) {
       console.error(erreur);
@@ -159,4 +153,3 @@ client.on("messageCreate", async (message) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-```
