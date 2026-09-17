@@ -6,7 +6,8 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ChannelType
+  ChannelType,
+  EmbedBuilder
 } = require("discord.js");
 
 const app = express();
@@ -104,13 +105,16 @@ client.on("messageCreate", async (message) => {
   // 📜 RÈGLEMENT
   if (contenu === "!reglement") {
     return message.reply(
-      "📜 **REGLEMENT — DREAM COMMUNITY**\n\n" +
-        "🤝 Respect obligatoire\n" +
-        "🚫 Pas de harcèlement\n" +
-        "🚫 Pas d'insultes ou menaces\n" +
-        "🚫 Pas de spam\n" +
-        "🔞 Pas de contenu inapproprié\n" +
-        "⚠️ Le Staff peut sanctionner en cas d'infraction."
+      "📜 **RÈGLEMENT — DREAM COMMUNITY**\n\n" +
+        "🚫 Harcèlement, menaces & haine interdits\n" +
+        "🔞 Aucun contenu inapproprié\n" +
+        "🔒 Protège tes informations personnelles\n" +
+        "❌ Pas d’arnaques ou faux liens\n" +
+        "⚠️ Pas de désinformation\n" +
+        "⚖️ Respect du staff & des sanctions\n\n" +
+        "⚠️ **SANCTIONS**\n" +
+        "⚠️ 3 avertissements → ⏳ Suspension\n" +
+        "🚫 Après suspension → Exclusion"
     );
   }
 
@@ -119,6 +123,81 @@ client.on("messageCreate", async (message) => {
     return message.reply(
       "🌙 **DREAM COMMUNITY — SAISON 3** 🌙\n\n" +
         "Une communauté pour discuter, partager et participer à des événements !"
+    );
+  }
+
+  // 🚨 SIGNALER UN MEMBRE
+  if (contenu.startsWith("!report ")) {
+    const membre = message.mentions.members.first();
+
+    if (!membre) {
+      return message.reply(
+        "❌ Mentionne le membre que tu souhaites signaler."
+      );
+    }
+
+    if (membre.id === message.author.id) {
+      return message.reply(
+        "❌ Tu ne peux pas te signaler toi-même."
+      );
+    }
+
+    const raison = message.content
+      .replace(/^!report\s+<@!?\d+>\s*/i, "")
+      .trim();
+
+    if (!raison) {
+      return message.reply(
+        "❌ Indique une raison.\nExemple : `!report @membre harcèlement`"
+      );
+    }
+
+    const salonSignalements = message.guild.channels.cache.find(
+      (channel) =>
+        channel.type === ChannelType.GuildText &&
+        (
+          channel.name === "🚨・signalements" ||
+          channel.name === "🚨-signalements"
+        )
+    );
+
+    if (!salonSignalements) {
+      return message.reply(
+        "❌ Le salon `🚨・signalements` n'a pas été trouvé."
+      );
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("🚨 NOUVEAU SIGNALEMENT")
+      .setDescription(
+        "Un membre vient d'être signalé."
+      )
+      .addFields(
+        {
+          name: "👤 Membre signalé",
+          value: `${membre} (${membre.user.tag})`,
+          inline: false
+        },
+        {
+          name: "🙋 Signalé par",
+          value: `${message.author} (${message.author.tag})`,
+          inline: false
+        },
+        {
+          name: "📝 Raison",
+          value: raison,
+          inline: false
+        }
+      )
+      .setTimestamp();
+
+    await salonSignalements.send({
+      content: "🚨 **Nouveau signalement pour le Staff !**",
+      embeds: [embed]
+    });
+
+    return message.reply(
+      "✅ Ton signalement a été envoyé au Staff."
     );
   }
 
@@ -176,7 +255,7 @@ client.on("messageCreate", async (message) => {
     return;
   }
 
-  // 📊 VOIR LES AVERTISSEMENTS
+  // 📊 VOIR SES AVERTISSEMENTS
   if (contenu === "!warns") {
     const nombre =
       avertissements.get(message.author.id) || 0;
@@ -184,7 +263,7 @@ client.on("messageCreate", async (message) => {
     return message.reply(
       "⚠️ **Tes avertissements : " +
         nombre +
-        "/4**"
+        "/3**"
     );
   }
 
@@ -314,26 +393,42 @@ async function ajouterAvertissement(
         "📝 Raison : " +
         raison +
         "\n" +
-        "📊 Avertissements : **1/4**"
+        "📊 Avertissements : **1/3**"
     );
 
     return;
   }
 
-  // 2 WARNS → MUTE
+  // 2 WARNS
   if (nouveauNombre === 2) {
+    await channel.send(
+      "⚠️ " +
+        membre +
+        " reçoit son **2e avertissement**.\n" +
+        "📝 Raison : " +
+        raison +
+        "\n" +
+        "📊 Avertissements : **2/3**"
+    );
+
+    return;
+  }
+
+  // 3 WARNS → SUSPENSION
+  if (nouveauNombre === 3) {
     try {
       await membre.timeout(
-        10 * 60 * 1000,
-        "2 avertissements - Dream Community"
+        24 * 60 * 60 * 1000,
+        "3 avertissements - Suspension Dream Community"
       );
 
       await channel.send(
-        "🔇 " +
+        "⏳ " +
           membre +
-          " atteint **2 avertissements**.\n" +
-          "Sanction : **mute 10 minutes**.\n" +
-          "📝 Raison : " +
+          " atteint **3 avertissements**.\n\n" +
+          "Sanction : **SUSPENSION** pendant 24 heures.\n" +
+          "🌐 La suspension concerne l'accès Discord de la communauté.\n" +
+          "📝 Dernière raison : " +
           raison
       );
     } catch (erreur) {
@@ -342,56 +437,11 @@ async function ajouterAvertissement(
       await channel.send(
         "⚠️ " +
           membre +
-          " atteint **2 avertissements**, mais le mute n'a pas pu être appliqué."
+          " atteint **3 avertissements**, mais la suspension n'a pas pu être appliquée."
       );
     }
 
     return;
-  }
-
-  // 3 WARNS → KICK
-  if (nouveauNombre === 3) {
-    await channel.send(
-      "👢 " +
-        membre +
-        " atteint **3 avertissements**.\n" +
-        "Sanction : **expulsion du serveur**.\n" +
-        "📝 Raison : " +
-        raison
-    );
-
-    try {
-      await membre.kick(
-        "3 avertissements - Dream Community"
-      );
-    } catch (erreur) {
-      console.error(erreur);
-    }
-
-    return;
-  }
-
-  // 4 WARNS → BAN
-  if (nouveauNombre >= 4) {
-    await channel.send(
-      "🚫 " +
-        membre +
-        " atteint **4 avertissements**.\n" +
-        "Sanction : **bannissement du serveur**.\n" +
-        "📝 Raison : " +
-        raison
-    );
-
-    try {
-      await membre.ban({
-        reason:
-          "4 avertissements - Dream Community"
-      });
-    } catch (erreur) {
-      console.error(erreur);
-    }
-
-    avertissements.delete(id);
   }
 }
 
