@@ -1,4 +1,6 @@
 const express = require("express");
+const fs = require("fs");
+
 const {
   Client,
   GatewayIntentBits,
@@ -11,7 +13,10 @@ const {
   StringSelectMenuBuilder
 } = require("discord.js");
 
+// =====================================================
 // 🌐 SERVEUR WEB
+// =====================================================
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -23,7 +28,10 @@ app.listen(PORT, () => {
   console.log("Serveur web actif sur le port " + PORT);
 });
 
+// =====================================================
 // 🤖 CLIENT DISCORD
+// =====================================================
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -33,10 +41,154 @@ const client = new Client({
   ]
 });
 
+// =====================================================
 // ⚠️ AVERTISSEMENTS
+// =====================================================
+
 const avertissements = new Map();
 
+// =====================================================
+// 📊 XP / NIVEAUX
+// =====================================================
+
+// Fichier de sauvegarde
+const XP_FILE = "./xp.json";
+
+// Charger les XP existants
+let xpData = {};
+
+try {
+  if (fs.existsSync(XP_FILE)) {
+    xpData = JSON.parse(
+      fs.readFileSync(XP_FILE, "utf8")
+    );
+  }
+} catch (erreur) {
+  console.error(
+    "❌ Impossible de charger xp.json :",
+    erreur
+  );
+
+  xpData = {};
+}
+
+// Cooldown XP
+const xpCooldowns = new Map();
+
+// XP gagné par message
+const XP_PAR_MESSAGE = 10;
+
+// Cooldown entre deux gains d'XP
+const XP_COOLDOWN = 30 * 1000;
+
+// Calcul de l'XP nécessaire pour atteindre un niveau
+function xpPourNiveau(niveau) {
+  return (
+    100 +
+    50 * (niveau - 1)
+  );
+}
+
+// Calcul du niveau actuel
+function calculerNiveau(xp) {
+  let niveau = 1;
+  let xpNecessaire = 0;
+
+  while (xp >= xpNecessaire + xpPourNiveau(niveau)) {
+    xpNecessaire += xpPourNiveau(niveau);
+    niveau++;
+  }
+
+  return {
+    niveau,
+    xpDansNiveau: xp - xpNecessaire,
+    xpPourProchain:
+      xpPourNiveau(niveau)
+  };
+}
+
+// Sauvegarder les XP
+function sauvegarderXP() {
+  try {
+    fs.writeFileSync(
+      XP_FILE,
+      JSON.stringify(xpData, null, 2)
+    );
+  } catch (erreur) {
+    console.error(
+      "❌ Erreur sauvegarde XP :",
+      erreur
+    );
+  }
+}
+
+// Ajouter de l'XP
+async function ajouterXP(member) {
+  if (!member || member.user.bot) return;
+
+  const id = member.id;
+  const maintenant = Date.now();
+
+  // Cooldown
+  const dernierXP =
+    xpCooldowns.get(id) || 0;
+
+  if (
+    maintenant - dernierXP <
+    XP_COOLDOWN
+  ) {
+    return;
+  }
+
+  xpCooldowns.set(
+    id,
+    maintenant
+  );
+
+  if (!xpData[id]) {
+    xpData[id] = {
+      xp: 0
+    };
+  }
+
+  const ancienNiveau =
+    calculerNiveau(
+      xpData[id].xp
+    ).niveau;
+
+  xpData[id].xp += XP_PAR_MESSAGE;
+
+  const nouveauNiveau =
+    calculerNiveau(
+      xpData[id].xp
+    ).niveau;
+
+  sauvegarderXP();
+
+  // 🎉 LEVEL UP
+  if (
+    nouveauNiveau >
+    ancienNiveau
+  ) {
+    try {
+      await member.guild.systemChannel?.send(
+        `🎉 **LEVEL UP !** 🎉\n\n` +
+        `Félicitations ${member} ! ⭐\n` +
+        `Tu viens d'atteindre le **niveau ${nouveauNiveau}** ! 🌙✨`
+      );
+    } catch (erreur) {
+      console.error(
+        "Erreur message level up :",
+        erreur
+      );
+    }
+  }
+}
+
+// =====================================================
 // 🚨 INSULTES
+// =====================================================
+
 const insultes = [
   "connard",
   "connasse",
@@ -57,7 +209,10 @@ const insultes = [
   "ftg"
 ];
 
+// =====================================================
 // 🤖 CONNEXION
+// =====================================================
+
 client.once("clientReady", () => {
   console.log(
     "Dream Community connecté en tant que " +
@@ -65,377 +220,617 @@ client.once("clientReady", () => {
   );
 });
 
+// =====================================================
 // 👋 BIENVENUE
-client.on("guildMemberAdd", async (member) => {
-  const channel = member.guild.systemChannel;
+// =====================================================
 
-  if (!channel) return;
+client.on(
+  "guildMemberAdd",
+  async (member) => {
 
-  await channel.send(
-    `👋 Bienvenue ${member} dans **Dream Community** ! 🌙✨\n` +
-    `Amuse-toi bien et n'oublie pas de lire le règlement ! 📜`
-  ).catch(console.error);
-});
+    const channel =
+      member.guild.systemChannel;
 
+    if (!channel) return;
+
+    await channel.send(
+      `👋 Bienvenue ${member} dans **Dream Community** ! 🌙✨\n` +
+      `Amuse-toi bien et n'oublie pas de lire le règlement ! 📜`
+    ).catch(console.error);
+  }
+);
+
+// =====================================================
 // 📩 MESSAGES
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
+// =====================================================
 
-  const contenu = message.content.toLowerCase();
+client.on(
+  "messageCreate",
+  async (message) => {
 
-  // 🚨 ANTI-INSULTES
-  const contientInsulte = insultes.some((mot) =>
-    contenu.includes(mot)
-  );
+    if (message.author.bot) return;
 
-  if (contientInsulte) {
-    try {
-      await message.delete();
+    const contenu =
+      message.content.toLowerCase();
 
-      await ajouterAvertissement(
-        message.member,
-        message.channel,
-        "Insulte / comportement irrespectueux"
+    // =================================================
+    // 🚨 ANTI-INSULTES
+    // =================================================
+
+    const contientInsulte =
+      insultes.some((mot) =>
+        contenu.includes(mot)
       );
-    } catch (erreur) {
-      console.error(erreur);
+
+    if (contientInsulte) {
+
+      try {
+        await message.delete();
+
+        await ajouterAvertissement(
+          message.member,
+          message.channel,
+          "Insulte / comportement irrespectueux"
+        );
+
+      } catch (erreur) {
+        console.error(erreur);
+      }
+
+      return;
     }
 
-    return;
-  }
+    // =================================================
+    // 📊 XP
+    // =================================================
 
-  // 📜 RÈGLEMENT
-  if (contenu === "!reglement") {
-    return message.reply(
-      "📜 **RÈGLEMENT — DREAM COMMUNITY**\n\n" +
-      "🚫 Harcèlement, menaces & haine interdits\n" +
-      "🔞 Aucun contenu inapproprié\n" +
-      "🔒 Protège tes informations personnelles\n" +
-      "❌ Pas d’arnaques ou faux liens\n" +
-      "⚠️ Pas de désinformation\n" +
-      "⚖️ Respect du staff & des sanctions\n\n" +
-      "⚠️ **SANCTIONS**\n" +
-      "⚠️ 3 avertissements → ⏳ Suspension\n" +
-      "🚫 Après suspension → Exclusion"
+    await ajouterXP(
+      message.member
     );
-  }
 
-  // 🌙 DREAM
-  if (contenu === "!dream") {
-    return message.reply(
-      "🌙 **DREAM COMMUNITY — SAISON 3** 🌙\n\n" +
-      "Une communauté pour discuter, partager et participer à des événements !"
-    );
-  }
+    // =================================================
+    // 📜 RÈGLEMENT
+    // =================================================
 
-  // 🚨 SIGNALEMENT
-  if (contenu.startsWith("!report ")) {
-    const membre = message.mentions.members.first();
+    if (
+      contenu === "!reglement"
+    ) {
 
-    if (!membre) {
       return message.reply(
-        "❌ Mentionne le membre que tu souhaites signaler."
+        "📜 **RÈGLEMENT — DREAM COMMUNITY**\n\n" +
+        "🚫 Harcèlement, menaces & haine interdits\n" +
+        "🔞 Aucun contenu inapproprié\n" +
+        "🔒 Protège tes informations personnelles\n" +
+        "❌ Pas d’arnaques ou faux liens\n" +
+        "⚠️ Pas de désinformation\n" +
+        "⚖️ Respect du staff & des sanctions\n\n" +
+        "⚠️ **SANCTIONS**\n" +
+        "⚠️ 3 avertissements → ⏳ Suspension\n" +
+        "🚫 Après suspension → Exclusion"
       );
     }
 
-    if (membre.id === message.author.id) {
+    // =================================================
+    // 🌙 DREAM
+    // =================================================
+
+    if (
+      contenu === "!dream"
+    ) {
+
       return message.reply(
-        "❌ Tu ne peux pas te signaler toi-même."
+        "🌙 **DREAM COMMUNITY — SAISON 3** 🌙\n\n" +
+        "Une communauté pour discuter, partager et participer à des événements !"
       );
     }
 
-    const raison = message.content
-      .replace(/^!report\s+<@!?\d+>\s*/i, "")
-      .trim();
+    // =================================================
+    // ⭐ RANK
+    // =================================================
 
-    if (!raison) {
+    if (
+      contenu === "!rank" ||
+      contenu === "!xp"
+    ) {
+
+      const id =
+        message.author.id;
+
+      const xp =
+        xpData[id]?.xp || 0;
+
+      const infos =
+        calculerNiveau(xp);
+
       return message.reply(
-        "❌ Indique une raison.\n" +
-        "Exemple : `!report @membre harcèlement`"
+        `⭐ **TON PROFIL XP**\n\n` +
+        `👤 ${message.author}\n` +
+        `🏆 Niveau : **${infos.niveau}**\n` +
+        `✨ XP : **${infos.xpDansNiveau}/${infos.xpPourProchain}**\n` +
+        `📊 XP total : **${xp}**`
       );
     }
 
-    const salonSignalements =
-      message.guild.channels.cache.find(
-        (channel) =>
-          channel.type === ChannelType.GuildText &&
-          (
-            channel.name === "🚨・signalements" ||
-            channel.name === "🚨-signalements"
+    // =================================================
+    // 🏆 LEADERBOARD
+    // =================================================
+
+    if (
+      contenu === "!leaderboard" ||
+      contenu === "!lb"
+    ) {
+
+      const classement =
+        Object.entries(xpData)
+          .sort(
+            (a, b) =>
+              b[1].xp - a[1].xp
           )
-      );
+          .slice(0, 10);
 
-    if (!salonSignalements) {
+      if (
+        classement.length === 0
+      ) {
+        return message.reply(
+          "🏆 Aucun membre n'a encore gagné d'XP."
+        );
+      }
+
+      let texte =
+        "🏆 **LEADERBOARD — DREAM COMMUNITY**\n\n";
+
+      for (
+        let i = 0;
+        i < classement.length;
+        i++
+      ) {
+
+        const [
+          id,
+          donnees
+        ] = classement[i];
+
+        const membre =
+          await message.guild.members
+            .fetch(id)
+            .catch(() => null);
+
+        if (!membre) continue;
+
+        const infos =
+          calculerNiveau(
+            donnees.xp
+          );
+
+        const positions = [
+          "🥇",
+          "🥈",
+          "🥉"
+        ];
+
+        const position =
+          positions[i] ||
+          `**${i + 1}.**`;
+
+        texte +=
+          `${position} ${membre.user.username} — ` +
+          `Niveau **${infos.niveau}** — ` +
+          `⭐ ${donnees.xp} XP\n`;
+      }
+
       return message.reply(
-        "❌ Le salon `🚨・signalements` n'a pas été trouvé."
+        texte
       );
     }
 
-    const embed = new EmbedBuilder()
-      .setTitle("🚨 NOUVEAU SIGNALEMENT")
-      .setDescription(
-        "Un membre vient d'être signalé."
-      )
-      .addFields(
-        {
-          name: "👤 Membre signalé",
-          value:
-            `${membre}\n` +
-            `\`${membre.user.tag}\`\n` +
-            `ID : \`${membre.id}\``,
-          inline: false
-        },
-        {
-          name: "🙋 Signalé par",
-          value:
-            `${message.author}\n` +
-            `\`${message.author.tag}\`\n` +
-            `ID : \`${message.author.id}\``,
-          inline: false
-        },
-        {
-          name: "📝 Raison",
-          value: raison,
-          inline: false
-        }
-      )
-      .setTimestamp();
+    // =================================================
+    // 🚨 SIGNALEMENT
+    // =================================================
 
-    await salonSignalements.send({
-      content:
-        "🚨 **Nouveau signalement pour le Staff !**",
-      embeds: [embed]
-    });
-
-    return message.reply(
-      "✅ Ton signalement a été envoyé au Staff."
-    );
-  }
-
-  // 🎫 PANNEAU TICKET
-  if (contenu === "!ticket") {
     if (
-      !message.member.permissions.has(
-        PermissionFlagsBits.ManageChannels
+      contenu.startsWith(
+        "!report "
       )
     ) {
-      return message.reply(
-        "❌ Tu n'as pas la permission."
-      );
-    }
 
-    const menu = new StringSelectMenuBuilder()
-      .setCustomId("menu_ticket")
-      .setPlaceholder("🎫 Que souhaites-tu faire ?")
-      .addOptions(
-        {
-          label: "Devenir Admin",
-          description:
-            "Découvrir comment rejoindre l'administration",
-          value: "devenir_admin",
-          emoji: "👑"
-        },
-        {
-          label: "Site Web",
-          description:
-            "Accéder au site officiel de Dream Community",
-          value: "site_web",
-          emoji: "🌐"
-        },
-        {
-          label: "Contacter le Support",
-          description:
-            "Créer un ticket avec le Staff",
-          value: "contacter_support",
-          emoji: "🛟"
-        }
-      );
+      const membre =
+        message.mentions.members.first();
 
-    const row = new ActionRowBuilder()
-      .addComponents(menu);
+      if (!membre) {
+        return message.reply(
+          "❌ Mentionne le membre que tu souhaites signaler."
+        );
+      }
 
-    return message.channel.send({
-      content:
-        "🎫 **DREAM COMMUNITY — SUPPORT**\n\n" +
-        "Bienvenue dans le centre de support ! 🌙\n\n" +
-        "Sélectionne une option dans le menu ci-dessous :",
-      components: [row]
-    });
-  }
+      if (
+        membre.id ===
+        message.author.id
+      ) {
+        return message.reply(
+          "❌ Tu ne peux pas te signaler toi-même."
+        );
+      }
 
-  // ⚠️ WARN MANUEL
-  if (contenu.startsWith("!warn ")) {
-    if (
-      !message.member.permissions.has(
-        PermissionFlagsBits.ModerateMembers
-      )
-    ) {
-      return message.reply(
-        "❌ Tu n'as pas la permission."
-      );
-    }
+      const raison =
+        message.content
+          .replace(
+            /^!report\s+<@!?\d+>\s*/i,
+            ""
+          )
+          .trim();
 
-    const membre =
-      message.mentions.members.first();
+      if (!raison) {
+        return message.reply(
+          "❌ Indique une raison.\n" +
+          "Exemple : `!report @membre harcèlement`"
+        );
+      }
 
-    if (!membre) {
-      return message.reply(
-        "❌ Mentionne un membre."
-      );
-    }
+      const salonSignalements =
+        message.guild.channels.cache.find(
+          (channel) =>
+            channel.type ===
+              ChannelType.GuildText &&
+            (
+              channel.name ===
+                "🚨・signalements" ||
+              channel.name ===
+                "🚨-signalements"
+            )
+        );
 
-    const raison =
-      message.content
-        .split(" ")
-        .slice(2)
-        .join(" ") ||
-      "Aucune raison précisée.";
+      if (!salonSignalements) {
+        return message.reply(
+          "❌ Le salon `🚨・signalements` n'a pas été trouvé."
+        );
+      }
 
-    await ajouterAvertissement(
-      membre,
-      message.channel,
-      raison
-    );
+      const embed =
+        new EmbedBuilder()
+          .setTitle(
+            "🚨 NOUVEAU SIGNALEMENT"
+          )
+          .setDescription(
+            "Un membre vient d'être signalé."
+          )
+          .addFields(
+            {
+              name:
+                "👤 Membre signalé",
+              value:
+                `${membre}\n` +
+                `\`${membre.user.tag}\`\n` +
+                `ID : \`${membre.id}\``,
+              inline: false
+            },
+            {
+              name:
+                "🙋 Signalé par",
+              value:
+                `${message.author}\n` +
+                `\`${message.author.tag}\`\n` +
+                `ID : \`${message.author.id}\``,
+              inline: false
+            },
+            {
+              name:
+                "📝 Raison",
+              value: raison,
+              inline: false
+            }
+          )
+          .setTimestamp();
 
-    return;
-  }
-
-  // 📊 WARNS
-  if (contenu === "!warns") {
-    const nombre =
-      avertissements.get(message.author.id) || 0;
-
-    return message.reply(
-      `⚠️ **Tes avertissements : ${nombre}/3**`
-    );
-  }
-
-  // 🔇 MUTE
-  if (contenu.startsWith("!mute ")) {
-    if (
-      !message.member.permissions.has(
-        PermissionFlagsBits.ModerateMembers
-      )
-    ) {
-      return message.reply(
-        "❌ Tu n'as pas la permission."
-      );
-    }
-
-    const membre =
-      message.mentions.members.first();
-
-    if (!membre) {
-      return message.reply(
-        "❌ Mentionne un membre."
-      );
-    }
-
-    try {
-      await membre.timeout(
-        10 * 60 * 1000,
-        "Sanction Dream Community"
-      );
-
-      return message.reply(
-        `🔇 ${membre} a été mis en silence pendant **10 minutes**.`
-      );
-    } catch (erreur) {
-      console.error(erreur);
-
-      return message.reply(
-        "❌ Impossible d'appliquer la sanction."
-      );
-    }
-  }
-
-  // 👢 KICK
-  if (contenu.startsWith("!kick ")) {
-    if (
-      !message.member.permissions.has(
-        PermissionFlagsBits.KickMembers
-      )
-    ) {
-      return message.reply(
-        "❌ Tu n'as pas la permission."
-      );
-    }
-
-    const membre =
-      message.mentions.members.first();
-
-    if (!membre) {
-      return message.reply(
-        "❌ Mentionne un membre."
-      );
-    }
-
-    try {
-      await membre.kick(
-        "Sanction Dream Community"
-      );
-
-      return message.reply(
-        `👢 ${membre.user.tag} a été expulsé.`
-      );
-    } catch (erreur) {
-      console.error(erreur);
-
-      return message.reply(
-        "❌ Impossible d'expulser ce membre."
-      );
-    }
-  }
-
-  // 🚫 BAN
-  if (contenu.startsWith("!ban ")) {
-    if (
-      !message.member.permissions.has(
-        PermissionFlagsBits.BanMembers
-      )
-    ) {
-      return message.reply(
-        "❌ Tu n'as pas la permission."
-      );
-    }
-
-    const membre =
-      message.mentions.members.first();
-
-    if (!membre) {
-      return message.reply(
-        "❌ Mentionne un membre."
-      );
-    }
-
-    try {
-      await membre.ban({
-        reason:
-          "Sanction Dream Community"
+      await salonSignalements.send({
+        content:
+          "🚨 **Nouveau signalement pour le Staff !**",
+        embeds: [embed]
       });
 
       return message.reply(
-        `🚫 ${membre.user.tag} a été banni.`
-      );
-    } catch (erreur) {
-      console.error(erreur);
-
-      return message.reply(
-        "❌ Impossible de bannir ce membre."
+        "✅ Ton signalement a été envoyé au Staff."
       );
     }
-  }
-});
 
+    // =================================================
+    // 🎫 PANNEAU TICKET
+    // =================================================
+
+    if (
+      contenu === "!ticket"
+    ) {
+
+      if (
+        !message.member.permissions.has(
+          PermissionFlagsBits.ManageChannels
+        )
+      ) {
+        return message.reply(
+          "❌ Tu n'as pas la permission."
+        );
+      }
+
+      const menu =
+        new StringSelectMenuBuilder()
+          .setCustomId(
+            "menu_ticket"
+          )
+          .setPlaceholder(
+            "🎫 Que souhaites-tu faire ?"
+          )
+          .addOptions(
+            {
+              label:
+                "Devenir Admin",
+              description:
+                "Découvrir comment rejoindre l'administration",
+              value:
+                "devenir_admin",
+              emoji: "👑"
+            },
+            {
+              label:
+                "Site Web",
+              description:
+                "Accéder au site officiel de Dream Community",
+              value:
+                "site_web",
+              emoji: "🌐"
+            },
+            {
+              label:
+                "Contacter le Support",
+              description:
+                "Créer un ticket avec le Staff",
+              value:
+                "contacter_support",
+              emoji: "🛟"
+            }
+          );
+
+      const row =
+        new ActionRowBuilder()
+          .addComponents(
+            menu
+          );
+
+      return message.channel.send({
+        content:
+          "🎫 **DREAM COMMUNITY — SUPPORT**\n\n" +
+          "Bienvenue dans le centre de support ! 🌙\n\n" +
+          "Sélectionne une option dans le menu ci-dessous :",
+        components: [row]
+      });
+    }
+
+    // =================================================
+    // ⚠️ WARN MANUEL
+    // =================================================
+
+    if (
+      contenu.startsWith(
+        "!warn "
+      )
+    ) {
+
+      if (
+        !message.member.permissions.has(
+          PermissionFlagsBits.ModerateMembers
+        )
+      ) {
+        return message.reply(
+          "❌ Tu n'as pas la permission."
+        );
+      }
+
+      const membre =
+        message.mentions.members.first();
+
+      if (!membre) {
+        return message.reply(
+          "❌ Mentionne un membre."
+        );
+      }
+
+      const raison =
+        message.content
+          .split(" ")
+          .slice(2)
+          .join(" ") ||
+        "Aucune raison précisée.";
+
+      await ajouterAvertissement(
+        membre,
+        message.channel,
+        raison
+      );
+
+      return;
+    }
+
+    // =================================================
+    // 📊 WARNS
+    // =================================================
+
+    if (
+      contenu === "!warns"
+    ) {
+
+      const nombre =
+        avertissements.get(
+          message.author.id
+        ) || 0;
+
+      return message.reply(
+        `⚠️ **Tes avertissements : ${nombre}/3**`
+      );
+    }
+
+    // =================================================
+    // 🔇 MUTE
+    // =================================================
+
+    if (
+      contenu.startsWith(
+        "!mute "
+      )
+    ) {
+
+      if (
+        !message.member.permissions.has(
+          PermissionFlagsBits.ModerateMembers
+        )
+      ) {
+        return message.reply(
+          "❌ Tu n'as pas la permission."
+        );
+      }
+
+      const membre =
+        message.mentions.members.first();
+
+      if (!membre) {
+        return message.reply(
+          "❌ Mentionne un membre."
+        );
+      }
+
+      try {
+
+        await membre.timeout(
+          10 * 60 * 1000,
+          "Sanction Dream Community"
+        );
+
+        return message.reply(
+          `🔇 ${membre} a été mis en silence pendant **10 minutes**.`
+        );
+
+      } catch (erreur) {
+
+        console.error(erreur);
+
+        return message.reply(
+          "❌ Impossible d'appliquer la sanction."
+        );
+      }
+    }
+
+    // =================================================
+    // 👢 KICK
+    // =================================================
+
+    if (
+      contenu.startsWith(
+        "!kick "
+      )
+    ) {
+
+      if (
+        !message.member.permissions.has(
+          PermissionFlagsBits.KickMembers
+        )
+      ) {
+        return message.reply(
+          "❌ Tu n'as pas la permission."
+        );
+      }
+
+      const membre =
+        message.mentions.members.first();
+
+      if (!membre) {
+        return message.reply(
+          "❌ Mentionne un membre."
+        );
+      }
+
+      try {
+
+        await membre.kick(
+          "Sanction Dream Community"
+        );
+
+        return message.reply(
+          `👢 ${membre.user.tag} a été expulsé.`
+        );
+
+      } catch (erreur) {
+
+        console.error(erreur);
+
+        return message.reply(
+          "❌ Impossible d'expulser ce membre."
+        );
+      }
+    }
+
+    // =================================================
+    // 🚫 BAN
+    // =================================================
+
+    if (
+      contenu.startsWith(
+        "!ban "
+      )
+    ) {
+
+      if (
+        !message.member.permissions.has(
+          PermissionFlagsBits.BanMembers
+        )
+      ) {
+        return message.reply(
+          "❌ Tu n'as pas la permission."
+        );
+      }
+
+      const membre =
+        message.mentions.members.first();
+
+      if (!membre) {
+        return message.reply(
+          "❌ Mentionne un membre."
+        );
+      }
+
+      try {
+
+        await membre.ban({
+          reason:
+            "Sanction Dream Community"
+        });
+
+        return message.reply(
+          `🚫 ${membre.user.tag} a été banni.`
+        );
+
+      } catch (erreur) {
+
+        console.error(erreur);
+
+        return message.reply(
+          "❌ Impossible de bannir ce membre."
+        );
+      }
+    }
+  }
+);
+
+// =====================================================
 // ⚠️ AJOUTER UN AVERTISSEMENT
+// =====================================================
+
 async function ajouterAvertissement(
   membre,
   channel,
   raison
 ) {
+
   if (!membre) return;
 
-  const id = membre.id;
+  const id =
+    membre.id;
 
   const nouveauNombre =
     (avertissements.get(id) || 0) + 1;
@@ -445,7 +840,10 @@ async function ajouterAvertissement(
     nouveauNombre
   );
 
-  if (nouveauNombre === 1) {
+  if (
+    nouveauNombre === 1
+  ) {
+
     await channel.send(
       `⚠️ ${membre} reçoit son **1er avertissement**.\n` +
       `📝 Raison : ${raison}\n` +
@@ -455,7 +853,10 @@ async function ajouterAvertissement(
     return;
   }
 
-  if (nouveauNombre === 2) {
+  if (
+    nouveauNombre === 2
+  ) {
+
     await channel.send(
       `⚠️ ${membre} reçoit son **2e avertissement**.\n` +
       `📝 Raison : ${raison}\n` +
@@ -465,8 +866,12 @@ async function ajouterAvertissement(
     return;
   }
 
-  if (nouveauNombre === 3) {
+  if (
+    nouveauNombre === 3
+  ) {
+
     try {
+
       await membre.timeout(
         24 * 60 * 60 * 1000,
         "3 avertissements - Suspension Dream Community"
@@ -477,7 +882,9 @@ async function ajouterAvertissement(
         `Sanction : **SUSPENSION 24 HEURES**.\n` +
         `📝 Dernière raison : ${raison}`
       );
+
     } catch (erreur) {
+
       console.error(erreur);
 
       await channel.send(
@@ -490,15 +897,22 @@ async function ajouterAvertissement(
   }
 }
 
+// =====================================================
 // 🎛️ INTERACTIONS
+// =====================================================
+
 client.on(
   "interactionCreate",
   async (interaction) => {
 
+    // =================================================
     // 📋 MENU TICKET
+    // =================================================
+
     if (
       interaction.isStringSelectMenu() &&
-      interaction.customId === "menu_ticket"
+      interaction.customId ===
+        "menu_ticket"
     ) {
 
       // 👑 DEVENIR ADMIN
@@ -506,6 +920,7 @@ client.on(
         interaction.values[0] ===
         "devenir_admin"
       ) {
+
         return interaction.reply({
           content:
             "👑 **DEVENIR ADMIN — DREAM COMMUNITY**\n\n" +
@@ -522,6 +937,7 @@ client.on(
         interaction.values[0] ===
         "site_web"
       ) {
+
         return interaction.reply({
           content:
             "🌐 **SITE WEB DREAM COMMUNITY**\n\n" +
@@ -531,22 +947,23 @@ client.on(
         });
       }
 
-      // 🛟 CONTACTER LE SUPPORT
+      // 🛟 SUPPORT
       if (
         interaction.values[0] ===
         "contacter_support"
       ) {
 
-        // ⚡ RÉPONDRE IMMÉDIATEMENT À DISCORD
+        // ⚡ Réponse immédiate
         await interaction.deferReply({
           ephemeral: true
         });
 
         try {
+
           const guild =
             interaction.guild;
 
-          // 🔐 Vérification permission du BOT
+          // 🔐 Permission du bot
           const botMember =
             guild.members.me;
 
@@ -556,32 +973,35 @@ client.on(
               PermissionFlagsBits.ManageChannels
             )
           ) {
+
             return interaction.editReply({
               content:
                 "❌ Le bot n'a pas la permission **Gérer les salons**."
             });
           }
 
-          // 🎫 NOM DU TICKET
+          // 🎫 Nom du ticket
           const nomTicket =
             "ticket-" +
             interaction.user.id;
 
-          // 🔎 TICKET EXISTANT
+          // 🔎 Ticket existant
           const ticketExistant =
             guild.channels.cache.find(
               (channel) =>
-                channel.name === nomTicket
+                channel.name ===
+                nomTicket
             );
 
           if (ticketExistant) {
+
             return interaction.editReply({
               content:
                 `❌ Tu as déjà un ticket ouvert : ${ticketExistant}`
             });
           }
 
-          // 📁 CATÉGORIE
+          // 📁 Catégorie
           let categorie =
             guild.channels.cache.find(
               (channel) =>
@@ -591,17 +1011,19 @@ client.on(
                   "🎫 TICKETS"
             );
 
-          // ➕ CRÉER LA CATÉGORIE SI ABSENTE
+          // ➕ Créer catégorie
           if (!categorie) {
+
             categorie =
               await guild.channels.create({
-                name: "🎫 TICKETS",
+                name:
+                  "🎫 TICKETS",
                 type:
                   ChannelType.GuildCategory
               });
           }
 
-          // 👮 RÔLE STAFF
+          // 👮 Rôle Staff
           const staffRole =
             guild.roles.cache.find(
               (role) =>
@@ -609,7 +1031,7 @@ client.on(
                 "staff"
             );
 
-          // 🔒 PERMISSIONS
+          // 🔒 Permissions
           const permissions = [
             {
               id:
@@ -630,8 +1052,10 @@ client.on(
           ];
 
           if (staffRole) {
+
             permissions.push({
-              id: staffRole.id,
+              id:
+                staffRole.id,
               allow: [
                 PermissionFlagsBits.ViewChannel,
                 PermissionFlagsBits.SendMessages,
@@ -641,18 +1065,20 @@ client.on(
             });
           }
 
-          // 🎫 CRÉATION DU TICKET
+          // 🎫 Créer le ticket
           const ticket =
             await guild.channels.create({
-              name: nomTicket,
+              name:
+                nomTicket,
               type:
                 ChannelType.GuildText,
-              parent: categorie.id,
+              parent:
+                categorie.id,
               permissionOverwrites:
                 permissions
             });
 
-          // 🔒 BOUTON FERMER
+          // 🔒 Bouton fermer
           const fermer =
             new ButtonBuilder()
               .setCustomId(
@@ -671,16 +1097,18 @@ client.on(
                 fermer
               );
 
-          // 💬 MESSAGE DU TICKET
+          // 💬 Message ticket
           await ticket.send({
             content:
               "🎫 **Ticket ouvert !**\n\n" +
               `${interaction.user}, explique ton problème ici.\n` +
               "Le Staff viendra te répondre dès que possible.",
-            components: [row]
+            components: [
+              row
+            ]
           });
 
-          // ✅ RÉPONSE FINALE
+          // ✅ Réponse
           return interaction.editReply({
             content:
               `✅ Ton ticket a été créé : ${ticket}`
@@ -702,7 +1130,10 @@ client.on(
       }
     }
 
+    // =================================================
     // 🔒 FERMER UN TICKET
+    // =================================================
+
     if (
       interaction.isButton() &&
       interaction.customId ===
@@ -714,6 +1145,7 @@ client.on(
           PermissionFlagsBits.ManageChannels
         )
       ) {
+
         return interaction.reply({
           content:
             "❌ Seul le Staff peut fermer ce ticket.",
@@ -726,15 +1158,20 @@ client.on(
       );
 
       setTimeout(() => {
+
         interaction.channel
           .delete()
           .catch(console.error);
+
       }, 2000);
     }
   }
 );
 
+// =====================================================
 // 🔐 CONNEXION
+// =====================================================
+
 client.login(
   process.env.DISCORD_TOKEN
 );
