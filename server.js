@@ -280,9 +280,10 @@ async function ajouterAvertissement(
 }
 
 // =====================================================
-// 🚫 ANTI-INSULTES
+// 🚫 CONTENUS INTERDITS
 // =====================================================
 
+// Insultes / vulgarités
 const insultes = [
   "connard",
   "connasse",
@@ -297,6 +298,121 @@ const insultes = [
   "va te faire foutre",
   "ta gueule"
 ];
+
+// Contenu sexuel / inapproprié
+const contenusSexuels = [
+  "porn",
+  "porno",
+  "pornographie",
+  "nsfw",
+  "nude",
+  "nudes",
+  "sexting"
+];
+
+// Menaces / violence
+const menacesViolentes = [
+  "je vais te tuer",
+  "je vais vous tuer",
+  "je vais le tuer",
+  "je vais la tuer",
+  "je vais les tuer",
+
+  "je vais te frapper",
+  "je vais vous frapper",
+  "je vais le frapper",
+  "je vais la frapper",
+
+  "je vais te faire du mal",
+  "je vais vous faire du mal",
+
+  "je vais te décapiter",
+  "je vais vous décapiter",
+  "je vais le décapiter",
+  "je vais la décapiter",
+
+  "je vais te découper",
+  "je vais vous découper",
+  "je vais le découper",
+  "je vais la découper",
+
+  "je vais t'agresser",
+  "je vais vous agresser"
+];
+
+// Détection d'adresse personnelle
+const adresseRegex =
+  /\b\d{1,4}\s+(?:rue|avenue|boulevard|chemin|impasse|allée|allee|place|route|square|quai)\s+[A-Za-zÀ-ÿ0-9'’.-]+(?:\s+[A-Za-zÀ-ÿ0-9'’.-]+){0,5}\b/i;
+
+// Détection de numéro de téléphone français
+const telephoneRegex =
+  /(?<!\d)(?:0[1-9](?:[\s.-]?\d{2}){4}|\+33(?:[\s.-]?[1-9])(?:[\s.-]?\d{2}){4})(?!\d)/;
+
+// Détection d'adresse IP
+const ipRegex =
+  /\b(?:\d{1,3}\.){3}\d{1,3}\b/;
+
+// Détection d'informations privées
+const infoPriveeRegex =
+  /\b(?:mot\s*de\s*passe|password|api[\s_-]?key|clé[\s_-]?api|secret)\b\s*[:=]\s*\S+/i;
+
+// =====================================================
+// 🔍 ANALYSE DU CONTENU
+// =====================================================
+
+function detecterContenuInterdit(texte) {
+
+  const contenu = texte.toLowerCase();
+
+  // 🚫 Insultes
+  const insulte = insultes.find(
+    mot => contenu.includes(mot)
+  );
+
+  if (insulte) {
+    return "Insulte / langage inapproprié";
+  }
+
+  // 🔞 Contenu sexuel / inapproprié
+  const contenuSexuel = contenusSexuels.find(
+    mot => contenu.includes(mot)
+  );
+
+  if (contenuSexuel) {
+    return "Contenu sexuel / inapproprié";
+  }
+
+  // ⚠️ Menaces / violence
+  const menace = menacesViolentes.find(
+    phrase => contenu.includes(phrase)
+  );
+
+  if (menace) {
+    return "Menace / contenu violent";
+  }
+
+  // 🏠 Adresse personnelle
+  if (adresseRegex.test(texte)) {
+    return "Adresse personnelle";
+  }
+
+  // 📞 Numéro de téléphone
+  if (telephoneRegex.test(texte)) {
+    return "Numéro de téléphone";
+  }
+
+  // 🌐 Adresse IP
+  if (ipRegex.test(texte)) {
+    return "Adresse IP";
+  }
+
+  // 🔐 Information privée
+  if (infoPriveeRegex.test(texte)) {
+    return "Information privée";
+  }
+
+  return null;
+}
 
 // =====================================================
 // 👋 BIENVENUE + AUTO-RÔLE
@@ -380,23 +496,20 @@ client.on("messageCreate", async message => {
     const contenu = contenuOriginal.toLowerCase();
 
     // =================================================
-    // 🚫 ANTI-INSULTES
+    // 🚫 CONTENUS INTERDITS
     // =================================================
 
-    const texte = contenuOriginal.toLowerCase();
+    const contenuInterdit =
+      detecterContenuInterdit(contenuOriginal);
 
-    const insulte = insultes.some(
-      mot => texte.includes(mot)
-    );
-
-    if (insulte) {
+    if (contenuInterdit) {
 
       await message.delete().catch(() => {});
 
       await ajouterAvertissement(
         message.member,
         message.channel,
-        "Insulte / langage inapproprié"
+        contenuInterdit
       );
 
       return;
@@ -531,6 +644,7 @@ client.on("messageCreate", async message => {
         `🚫 Pas de menaces\n` +
         `🚫 Pas d'insultes\n` +
         `🔞 Pas de contenu inapproprié\n` +
+        `🏠 Pas de partage d'informations personnelles\n` +
         `📢 Pas de spam\n\n` +
         `🌙 Merci de respecter Dream Community !`
       );
