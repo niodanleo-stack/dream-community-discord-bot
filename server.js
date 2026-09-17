@@ -1442,7 +1442,7 @@ client.on(
                     "`!kick @membre`\n" +
                     "`!ban @membre`"
                 }
-              ]
+              )
           ]
         });
       }
