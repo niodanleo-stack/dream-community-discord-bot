@@ -1,4 +1,4 @@
-code = r'''const express = require("express");
+const express = require("express");
 const {
   Client,
   GatewayIntentBits,
@@ -21,6 +21,7 @@ app.listen(PORT, () => {
   console.log("Serveur web actif sur le port " + PORT);
 });
 
+// 🤖 CLIENT DISCORD
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -30,25 +31,44 @@ const client = new Client({
   ]
 });
 
+// ⚠️ AVERTISSEMENTS
 const avertissements = new Map();
 
+// 🚨 INSULTES
 const insultes = [
-  "connard", "connasse", "fdp", "pute", "salope", "enculé", "encule",
-  "nique", "ntm", "ta gueule", "tg", "ferme ta gueule",
-  "baise ta mère", "baise ta mere", "va te faire foutre",
-  "va te faire enculer", "ftg"
+  "connard",
+  "connasse",
+  "fdp",
+  "pute",
+  "salope",
+  "enculé",
+  "encule",
+  "nique",
+  "ntm",
+  "ta gueule",
+  "tg",
+  "ferme ta gueule",
+  "baise ta mère",
+  "baise ta mere",
+  "va te faire foutre",
+  "va te faire enculer",
+  "ftg"
 ];
 
+// 🤖 CONNEXION
 client.once("clientReady", () => {
-  console.log("Dream Community connecté en tant que " + client.user.tag);
+  console.log(
+    "Dream Community connecté en tant que " + client.user.tag
+  );
 });
 
 // 👋 BIENVENUE
 client.on("guildMemberAdd", async (member) => {
   const channel = member.guild.systemChannel;
+
   if (!channel) return;
 
-  channel.send(
+  await channel.send(
     `👋 Bienvenue ${member} dans **Dream Community** ! 🌙✨\n` +
     `Amuse-toi bien et n'oublie pas de lire le règlement ! 📜`
   ).catch(console.error);
@@ -61,11 +81,14 @@ client.on("messageCreate", async (message) => {
   const contenu = message.content.toLowerCase();
 
   // 🚨 ANTI-INSULTES
-  const contientInsulte = insultes.some((mot) => contenu.includes(mot));
+  const contientInsulte = insultes.some((mot) =>
+    contenu.includes(mot)
+  );
 
   if (contientInsulte) {
     try {
       await message.delete();
+
       await ajouterAvertissement(
         message.member,
         message.channel,
@@ -74,6 +97,7 @@ client.on("messageCreate", async (message) => {
     } catch (erreur) {
       console.error(erreur);
     }
+
     return;
   }
 
@@ -101,16 +125,20 @@ client.on("messageCreate", async (message) => {
     );
   }
 
-  // 🚨 SIGNALER
+  // 🚨 SIGNALEMENT
   if (contenu.startsWith("!report ")) {
     const membre = message.mentions.members.first();
 
     if (!membre) {
-      return message.reply("❌ Mentionne le membre que tu souhaites signaler.");
+      return message.reply(
+        "❌ Mentionne le membre que tu souhaites signaler."
+      );
     }
 
     if (membre.id === message.author.id) {
-      return message.reply("❌ Tu ne peux pas te signaler toi-même.");
+      return message.reply(
+        "❌ Tu ne peux pas te signaler toi-même."
+      );
     }
 
     const raison = message.content
@@ -119,32 +147,47 @@ client.on("messageCreate", async (message) => {
 
     if (!raison) {
       return message.reply(
-        "❌ Indique une raison.\nExemple : `!report @membre harcèlement`"
+        "❌ Indique une raison.\n" +
+        "Exemple : `!report @membre harcèlement`"
       );
     }
 
-    const salonSignalements = message.guild.channels.cache.find(
-      (channel) =>
-        channel.type === ChannelType.GuildText &&
-        (channel.name === "🚨・signalements" || channel.name === "🚨-signalements")
-    );
+    const salonSignalements =
+      message.guild.channels.cache.find(
+        (channel) =>
+          channel.type === ChannelType.GuildText &&
+          (
+            channel.name === "🚨・signalements" ||
+            channel.name === "🚨-signalements"
+          )
+      );
 
     if (!salonSignalements) {
-      return message.reply("❌ Le salon `🚨・signalements` n'a pas été trouvé.");
+      return message.reply(
+        "❌ Le salon `🚨・signalements` n'a pas été trouvé."
+      );
     }
 
     const embed = new EmbedBuilder()
       .setTitle("🚨 NOUVEAU SIGNALEMENT")
-      .setDescription("Un membre vient d'être signalé.")
+      .setDescription(
+        "Un membre vient d'être signalé."
+      )
       .addFields(
         {
           name: "👤 Membre signalé",
-          value: `${membre} (${membre.user.tag})`,
+          value:
+            `${membre}\n` +
+            `\`${membre.user.tag}\`\n` +
+            `ID : \`${membre.id}\``,
           inline: false
         },
         {
           name: "🙋 Signalé par",
-          value: `${message.author} (${message.author.tag})`,
+          value:
+            `${message.author}\n` +
+            `\`${message.author.tag}\`\n` +
+            `ID : \`${message.author.id}\``,
           inline: false
         },
         {
@@ -156,17 +199,26 @@ client.on("messageCreate", async (message) => {
       .setTimestamp();
 
     await salonSignalements.send({
-      content: "🚨 **Nouveau signalement pour le Staff !**",
+      content:
+        "🚨 **Nouveau signalement pour le Staff !**",
       embeds: [embed]
     });
 
-    return message.reply("✅ Ton signalement a été envoyé au Staff.");
+    return message.reply(
+      "✅ Ton signalement a été envoyé au Staff."
+    );
   }
 
   // 🎫 PANNEAU TICKET
   if (contenu === "!ticket") {
-    if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
-      return message.reply("❌ Tu n'as pas la permission.");
+    if (
+      !message.member.permissions.has(
+        PermissionFlagsBits.ManageChannels
+      )
+    ) {
+      return message.reply(
+        "❌ Tu n'as pas la permission."
+      );
     }
 
     const bouton = new ButtonBuilder()
@@ -174,123 +226,223 @@ client.on("messageCreate", async (message) => {
       .setLabel("🎫 Créer un ticket")
       .setStyle(ButtonStyle.Primary);
 
-    const row = new ActionRowBuilder().addComponents(bouton);
+    const row = new ActionRowBuilder()
+      .addComponents(bouton);
 
     return message.channel.send({
       content:
         "🎫 **SUPPORT DREAM COMMUNITY**\n\n" +
-        "Besoin d'aide ? Clique sur le bouton ci-dessous pour créer un ticket avec le Staff.",
+        "Besoin d'aide ? Clique sur le bouton ci-dessous " +
+        "pour créer un ticket avec le Staff.",
       components: [row]
     });
   }
 
-  // ⚠️ WARN
+  // ⚠️ WARN MANUEL
   if (contenu.startsWith("!warn ")) {
-    if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-      return message.reply("❌ Tu n'as pas la permission.");
+    if (
+      !message.member.permissions.has(
+        PermissionFlagsBits.ModerateMembers
+      )
+    ) {
+      return message.reply(
+        "❌ Tu n'as pas la permission."
+      );
     }
 
-    const membre = message.mentions.members.first();
+    const membre =
+      message.mentions.members.first();
 
     if (!membre) {
-      return message.reply("❌ Mentionne un membre.");
+      return message.reply(
+        "❌ Mentionne un membre."
+      );
     }
 
     const raison =
-      message.content.split(" ").slice(2).join(" ") ||
+      message.content
+        .split(" ")
+        .slice(2)
+        .join(" ") ||
       "Aucune raison précisée.";
 
-    await ajouterAvertissement(membre, message.channel, raison);
+    await ajouterAvertissement(
+      membre,
+      message.channel,
+      raison
+    );
+
     return;
   }
 
-  // 📊 WARNS
+  // 📊 VOIR LES WARNS
   if (contenu === "!warns") {
-    const nombre = avertissements.get(message.author.id) || 0;
+    const nombre =
+      avertissements.get(message.author.id) || 0;
 
-    return message.reply(`⚠️ **Tes avertissements : ${nombre}/3**`);
+    return message.reply(
+      `⚠️ **Tes avertissements : ${nombre}/3**`
+    );
   }
 
-  // 🔇 MUTE
+  // 🔇 MUTE MANUEL
   if (contenu.startsWith("!mute ")) {
-    if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-      return message.reply("❌ Tu n'as pas la permission.");
+    if (
+      !message.member.permissions.has(
+        PermissionFlagsBits.ModerateMembers
+      )
+    ) {
+      return message.reply(
+        "❌ Tu n'as pas la permission."
+      );
     }
 
-    const membre = message.mentions.members.first();
-    if (!membre) return message.reply("❌ Mentionne un membre.");
+    const membre =
+      message.mentions.members.first();
+
+    if (!membre) {
+      return message.reply(
+        "❌ Mentionne un membre."
+      );
+    }
 
     try {
-      await membre.timeout(10 * 60 * 1000, "Sanction Dream Community");
-      return message.reply(`🔇 ${membre} a été mis en silence pendant **10 minutes**.`);
+      await membre.timeout(
+        10 * 60 * 1000,
+        "Sanction Dream Community"
+      );
+
+      return message.reply(
+        `🔇 ${membre} a été mis en silence pendant **10 minutes**.`
+      );
     } catch (erreur) {
       console.error(erreur);
-      return message.reply("❌ Impossible d'appliquer la sanction.");
+
+      return message.reply(
+        "❌ Impossible d'appliquer la sanction."
+      );
     }
   }
 
-  // 👢 KICK
+  // 👢 KICK MANUEL
   if (contenu.startsWith("!kick ")) {
-    if (!message.member.permissions.has(PermissionFlagsBits.KickMembers)) {
-      return message.reply("❌ Tu n'as pas la permission.");
+    if (
+      !message.member.permissions.has(
+        PermissionFlagsBits.KickMembers
+      )
+    ) {
+      return message.reply(
+        "❌ Tu n'as pas la permission."
+      );
     }
 
-    const membre = message.mentions.members.first();
-    if (!membre) return message.reply("❌ Mentionne un membre.");
+    const membre =
+      message.mentions.members.first();
+
+    if (!membre) {
+      return message.reply(
+        "❌ Mentionne un membre."
+      );
+    }
 
     try {
-      await membre.kick("Sanction Dream Community");
-      return message.reply(`👢 ${membre.user.tag} a été expulsé.`);
+      await membre.kick(
+        "Sanction Dream Community"
+      );
+
+      return message.reply(
+        `👢 ${membre.user.tag} a été expulsé.`
+      );
     } catch (erreur) {
       console.error(erreur);
-      return message.reply("❌ Impossible d'expulser ce membre.");
+
+      return message.reply(
+        "❌ Impossible d'expulser ce membre."
+      );
     }
   }
 
-  // 🚫 BAN
+  // 🚫 BAN MANUEL
   if (contenu.startsWith("!ban ")) {
-    if (!message.member.permissions.has(PermissionFlagsBits.BanMembers)) {
-      return message.reply("❌ Tu n'as pas la permission.");
+    if (
+      !message.member.permissions.has(
+        PermissionFlagsBits.BanMembers
+      )
+    ) {
+      return message.reply(
+        "❌ Tu n'as pas la permission."
+      );
     }
 
-    const membre = message.mentions.members.first();
-    if (!membre) return message.reply("❌ Mentionne un membre.");
+    const membre =
+      message.mentions.members.first();
+
+    if (!membre) {
+      return message.reply(
+        "❌ Mentionne un membre."
+      );
+    }
 
     try {
-      await membre.ban({ reason: "Sanction Dream Community" });
-      return message.reply(`🚫 ${membre.user.tag} a été banni.`);
+      await membre.ban({
+        reason:
+          "Sanction Dream Community"
+      });
+
+      return message.reply(
+        `🚫 ${membre.user.tag} a été banni.`
+      );
     } catch (erreur) {
       console.error(erreur);
-      return message.reply("❌ Impossible de bannir ce membre.");
+
+      return message.reply(
+        "❌ Impossible de bannir ce membre."
+      );
     }
   }
 });
 
 // ⚠️ AJOUTER UN AVERTISSEMENT
-async function ajouterAvertissement(membre, channel, raison) {
+async function ajouterAvertissement(
+  membre,
+  channel,
+  raison
+) {
   if (!membre) return;
 
   const id = membre.id;
-  const nouveauNombre = (avertissements.get(id) || 0) + 1;
 
-  avertissements.set(id, nouveauNombre);
+  const nouveauNombre =
+    (avertissements.get(id) || 0) + 1;
 
+  avertissements.set(
+    id,
+    nouveauNombre
+  );
+
+  // 1 WARN
   if (nouveauNombre === 1) {
     await channel.send(
       `⚠️ ${membre} reçoit son **1er avertissement**.\n` +
-      `📝 Raison : ${raison}\n📊 Avertissements : **1/3**`
+      `📝 Raison : ${raison}\n` +
+      `📊 Avertissements : **1/3**`
     );
+
     return;
   }
 
+  // 2 WARNS
   if (nouveauNombre === 2) {
     await channel.send(
       `⚠️ ${membre} reçoit son **2e avertissement**.\n` +
-      `📝 Raison : ${raison}\n📊 Avertissements : **2/3**`
+      `📝 Raison : ${raison}\n` +
+      `📊 Avertissements : **2/3**`
     );
+
     return;
   }
 
+  // 3 WARNS → SUSPENSION
   if (nouveauNombre === 3) {
     try {
       await membre.timeout(
@@ -300,130 +452,181 @@ async function ajouterAvertissement(membre, channel, raison) {
 
       await channel.send(
         `⏳ ${membre} atteint **3 avertissements**.\n\n` +
-        `Sanction : **SUSPENSION 24 heures**.\n` +
+        `Sanction : **SUSPENSION 24 HEURES**.\n` +
         `📝 Dernière raison : ${raison}`
       );
     } catch (erreur) {
       console.error(erreur);
+
       await channel.send(
-        `⚠️ ${membre} atteint **3 avertissements**, mais la suspension n'a pas pu être appliquée.`
+        `⚠️ ${membre} atteint **3 avertissements**, ` +
+        `mais la suspension n'a pas pu être appliquée.`
       );
     }
+
+    return;
   }
 }
 
-// 🎫 BOUTONS TICKETS
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isButton()) return;
+// 🎫 BOUTONS DES TICKETS
+client.on(
+  "interactionCreate",
+  async (interaction) => {
+    if (!interaction.isButton()) return;
 
-  // 🎫 CRÉATION
-  if (interaction.customId === "creer_ticket") {
-    const guild = interaction.guild;
+    // 🎫 CRÉER UN TICKET
+    if (
+      interaction.customId ===
+      "creer_ticket"
+    ) {
+      const guild = interaction.guild;
 
-    const ticketExistant = guild.channels.cache.find(
-      (channel) =>
-        channel.name === `ticket-${interaction.user.username.toLowerCase()}`
-    );
+      const nomTicket =
+        "ticket-" +
+        interaction.user.username
+          .toLowerCase();
 
-    if (ticketExistant) {
-      return interaction.reply({
-        content: `❌ Tu as déjà un ticket ouvert : ${ticketExistant}`,
-        ephemeral: true
-      });
-    }
+      const ticketExistant =
+        guild.channels.cache.find(
+          (channel) =>
+            channel.name === nomTicket
+        );
 
-    let categorie = guild.channels.cache.find(
-      (channel) =>
-        channel.type === ChannelType.GuildCategory &&
-        channel.name === "🎫 TICKETS"
-    );
-
-    if (!categorie) {
-      categorie = await guild.channels.create({
-        name: "🎫 TICKETS",
-        type: ChannelType.GuildCategory
-      });
-    }
-
-    const staffRole = guild.roles.cache.find(
-      (role) => role.name.toLowerCase() === "staff"
-    );
-
-    const permissions = [
-      {
-        id: guild.roles.everyone.id,
-        deny: [PermissionFlagsBits.ViewChannel]
-      },
-      {
-        id: interaction.user.id,
-        allow: [
-          PermissionFlagsBits.ViewChannel,
-          PermissionFlagsBits.SendMessages,
-          PermissionFlagsBits.ReadMessageHistory
-        ]
+      if (ticketExistant) {
+        return interaction.reply({
+          content:
+            `❌ Tu as déjà un ticket ouvert : ${ticketExistant}`,
+          ephemeral: true
+        });
       }
-    ];
 
-    if (staffRole) {
-      permissions.push({
-        id: staffRole.id,
-        allow: [
-          PermissionFlagsBits.ViewChannel,
-          PermissionFlagsBits.SendMessages,
-          PermissionFlagsBits.ReadMessageHistory,
-          PermissionFlagsBits.ManageChannels
-        ]
+      let categorie =
+        guild.channels.cache.find(
+          (channel) =>
+            channel.type ===
+              ChannelType.GuildCategory &&
+            channel.name === "🎫 TICKETS"
+        );
+
+      if (!categorie) {
+        categorie =
+          await guild.channels.create({
+            name: "🎫 TICKETS",
+            type:
+              ChannelType.GuildCategory
+          });
+      }
+
+      const staffRole =
+        guild.roles.cache.find(
+          (role) =>
+            role.name.toLowerCase() ===
+            "staff"
+        );
+
+      const permissions = [
+        {
+          id:
+            guild.roles.everyone.id,
+          deny: [
+            PermissionFlagsBits.ViewChannel
+          ]
+        },
+        {
+          id: interaction.user.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory
+          ]
+        }
+      ];
+
+      if (staffRole) {
+        permissions.push({
+          id: staffRole.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.ManageChannels
+          ]
+        });
+      }
+
+      const ticket =
+        await guild.channels.create({
+          name: nomTicket,
+          type: ChannelType.GuildText,
+          parent: categorie.id,
+          permissionOverwrites:
+            permissions
+        });
+
+      const fermer =
+        new ButtonBuilder()
+          .setCustomId(
+            "fermer_ticket"
+          )
+          .setLabel(
+            "🔒 Fermer le ticket"
+          )
+          .setStyle(
+            ButtonStyle.Danger
+          );
+
+      const row =
+        new ActionRowBuilder()
+          .addComponents(
+            fermer
+          );
+
+      await ticket.send({
+        content:
+          "🎫 **Ticket ouvert !**\n\n" +
+          `${interaction.user}, explique ton problème ici.\n` +
+          "Le Staff viendra te répondre dès que possible.",
+        components: [row]
       });
-    }
 
-    const ticket = await guild.channels.create({
-      name: `ticket-${interaction.user.username.toLowerCase()}`,
-      type: ChannelType.GuildText,
-      parent: categorie.id,
-      permissionOverwrites: permissions
-    });
-
-    const fermer = new ButtonBuilder()
-      .setCustomId("fermer_ticket")
-      .setLabel("🔒 Fermer le ticket")
-      .setStyle(ButtonStyle.Danger);
-
-    const row = new ActionRowBuilder().addComponents(fermer);
-
-    await ticket.send({
-      content:
-        `🎫 **Ticket ouvert !**\n\n` +
-        `${interaction.user}, explique ton problème ici.\n` +
-        `Le Staff viendra te répondre dès que possible.`,
-      components: [row]
-    });
-
-    return interaction.reply({
-      content: `✅ Ton ticket a été créé : ${ticket}`,
-      ephemeral: true
-    });
-  }
-
-  // 🔒 FERMETURE
-  if (interaction.customId === "fermer_ticket") {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
       return interaction.reply({
-        content: "❌ Seul le Staff peut fermer ce ticket.",
+        content:
+          `✅ Ton ticket a été créé : ${ticket}`,
         ephemeral: true
       });
     }
 
-    await interaction.reply("🔒 Fermeture du ticket...");
+    // 🔒 FERMER UN TICKET
+    if (
+      interaction.customId ===
+      "fermer_ticket"
+    ) {
+      if (
+        !interaction.member.permissions.has(
+          PermissionFlagsBits.ManageChannels
+        )
+      ) {
+        return interaction.reply({
+          content:
+            "❌ Seul le Staff peut fermer ce ticket.",
+          ephemeral: true
+        });
+      }
 
-    setTimeout(() => {
-      interaction.channel.delete().catch(console.error);
-    }, 2000);
+      await interaction.reply(
+        "🔒 Fermeture du ticket..."
+      );
+
+      setTimeout(() => {
+        interaction.channel
+          .delete()
+          .catch(console.error);
+      }, 2000);
+    }
   }
-});
+);
 
-client.login(process.env.DISCORD_TOKEN);
-'''
-path="/mnt/data/server.js"
-with open(path,"w",encoding="utf-8") as f:
-    f.write(code)
-print(path)
+// 🔐 CONNEXION
+client.login(
+  process.env.DISCORD_TOKEN
+);
