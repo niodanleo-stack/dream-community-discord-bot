@@ -29,7 +29,7 @@ const client = new Client({
   ]
 });
 
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log("Dream Community connecte en tant que " + client.user.tag);
 });
 
@@ -41,9 +41,9 @@ client.on("guildMemberAdd", async (member) => {
 
   channel.send(
     "👋 Bienvenue " +
-    member +
-    " dans **Dream Community** ! 🌙✨\n" +
-    "Amuse-toi bien et n'oublie pas de lire le règlement ! 📜"
+      member +
+      " dans **Dream Community** ! 🌙✨\n" +
+      "Amuse-toi bien et n'oublie pas de lire le règlement ! 📜"
   ).catch(console.error);
 });
 
@@ -53,16 +53,45 @@ client.on("messageCreate", async (message) => {
 
   const contenu = message.content.toLowerCase();
 
+  // 🚨 ANTI-INSULTES
+  const insultes = [
+    "connard",
+    "connasse",
+    "fdp",
+    "pute",
+    "salope",
+    "enculé",
+    "encule",
+    "nique",
+    "ntm"
+  ];
+
+  if (insultes.some((mot) => contenu.includes(mot))) {
+    try {
+      await message.delete();
+
+      await message.channel.send(
+        "🚨 " +
+          message.author +
+          ", les insultes ne sont pas autorisées ici !"
+      );
+    } catch (erreur) {
+      console.error(erreur);
+    }
+
+    return;
+  }
+
   // 📜 RÈGLEMENT
   if (contenu === "!reglement") {
     return message.reply(
       "📜 **REGLEMENT — DREAM COMMUNITY**\n\n" +
-      "🤝 Respect obligatoire\n" +
-      "🚫 Pas de harcelement\n" +
-      "🚫 Pas d'insultes ou menaces\n" +
-      "🚫 Pas de spam\n" +
-      "🔞 Pas de contenu inapproprie\n" +
-      "⚠️ Le Staff peut sanctionner en cas d'infraction."
+        "🤝 Respect obligatoire\n" +
+        "🚫 Pas de harcelement\n" +
+        "🚫 Pas d'insultes ou menaces\n" +
+        "🚫 Pas de spam\n" +
+        "🔞 Pas de contenu inapproprie\n" +
+        "⚠️ Le Staff peut sanctionner en cas d'infraction."
     );
   }
 
@@ -70,7 +99,7 @@ client.on("messageCreate", async (message) => {
   if (contenu === "!dream") {
     return message.reply(
       "🌙 **DREAM COMMUNITY — SAISON 3** 🌙\n\n" +
-      "Une communaute pour discuter, partager et participer a des evenements !"
+        "Une communaute pour discuter, partager et participer a des evenements !"
     );
   }
 
@@ -113,9 +142,9 @@ client.on("messageCreate", async (message) => {
 
     return message.reply(
       "⚠️ **Avertissement**\n" +
-      membre +
-      " a reçu un avertissement.\n📝 Raison : " +
-      raison
+        membre +
+        " a reçu un avertissement.\n📝 Raison : " +
+        raison
     );
   }
 
@@ -207,7 +236,8 @@ client.on("interactionCreate", async (interaction) => {
 
     const ticketExistant = guild.channels.cache.find(
       (channel) =>
-        channel.name === "ticket-" + interaction.user.username.toLowerCase()
+        channel.name ===
+        "ticket-" + interaction.user.username.toLowerCase()
     );
 
     if (ticketExistant) {
@@ -292,7 +322,11 @@ client.on("interactionCreate", async (interaction) => {
 
   // 🔒 FERMETURE
   if (interaction.customId === "fermer_ticket") {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
+    if (
+      !interaction.member.permissions.has(
+        PermissionFlagsBits.ManageChannels
+      )
+    ) {
       return interaction.reply({
         content: "❌ Seul le Staff peut fermer ce ticket.",
         ephemeral: true
