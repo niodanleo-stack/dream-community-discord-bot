@@ -11,6 +11,7 @@ const {
   StringSelectMenuBuilder
 } = require("discord.js");
 
+// 🌐 SERVEUR WEB
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -59,7 +60,8 @@ const insultes = [
 // 🤖 CONNEXION
 client.once("clientReady", () => {
   console.log(
-    "Dream Community connecté en tant que " + client.user.tag
+    "Dream Community connecté en tant que " +
+    client.user.tag
   );
 });
 
@@ -228,19 +230,22 @@ client.on("messageCreate", async (message) => {
       .addOptions(
         {
           label: "Devenir Admin",
-          description: "Découvrir comment rejoindre l'administration",
+          description:
+            "Découvrir comment rejoindre l'administration",
           value: "devenir_admin",
           emoji: "👑"
         },
         {
           label: "Site Web",
-          description: "Accéder au site officiel de Dream Community",
+          description:
+            "Accéder au site officiel de Dream Community",
           value: "site_web",
           emoji: "🌐"
         },
         {
           label: "Contacter le Support",
-          description: "Créer un ticket avec le Staff",
+          description:
+            "Créer un ticket avec le Staff",
           value: "contacter_support",
           emoji: "🛟"
         }
@@ -257,7 +262,7 @@ client.on("messageCreate", async (message) => {
       components: [row]
     });
   }
-  
+
   // ⚠️ WARN MANUEL
   if (contenu.startsWith("!warn ")) {
     if (
@@ -490,7 +495,7 @@ client.on(
   "interactionCreate",
   async (interaction) => {
 
-    // 📋 MENU DU PANNEAU TICKET
+    // 📋 MENU TICKET
     if (
       interaction.isStringSelectMenu() &&
       interaction.customId === "menu_ticket"
@@ -507,7 +512,7 @@ client.on(
             "Tu souhaites rejoindre l'administration ?\n\n" +
             "📋 Une candidature peut être demandée.\n" +
             "🤝 Le Staff étudiera ta demande.\n\n" +
-            "🛟 Si tu as besoin d'informations supplémentaires, choisis **Contacter le Support**.",
+            "🛟 Pour plus d'informations, contacte le Support.",
           ephemeral: true
         });
       }
@@ -526,130 +531,174 @@ client.on(
         });
       }
 
-      // 🛟 CONTACTER SUPPORT
+      // 🛟 CONTACTER LE SUPPORT
       if (
         interaction.values[0] ===
         "contacter_support"
       ) {
-        const guild =
-          interaction.guild;
 
-        const nomTicket =
-          "ticket-" +
-          interaction.user.username
-            .toLowerCase();
-
-        const ticketExistant =
-          guild.channels.cache.find(
-            (channel) =>
-              channel.name ===
-              nomTicket
-          );
-
-        if (ticketExistant) {
-          return interaction.reply({
-            content:
-              `❌ Tu as déjà un ticket ouvert : ${ticketExistant}`,
-            ephemeral: true
-          });
-        }
-
-        let categorie =
-          guild.channels.cache.find(
-            (channel) =>
-              channel.type ===
-                ChannelType.GuildCategory &&
-              channel.name ===
-                "🎫 TICKETS"
-          );
-
-        if (!categorie) {
-          categorie =
-            await guild.channels.create({
-              name: "🎫 TICKETS",
-              type:
-                ChannelType.GuildCategory
-            });
-        }
-
-        const staffRole =
-          guild.roles.cache.find(
-            (role) =>
-              role.name.toLowerCase() ===
-              "staff"
-          );
-
-        const permissions = [
-          {
-            id:
-              guild.roles.everyone.id,
-            deny: [
-              PermissionFlagsBits.ViewChannel
-            ]
-          },
-          {
-            id: interaction.user.id,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.ReadMessageHistory
-            ]
-          }
-        ];
-
-        if (staffRole) {
-          permissions.push({
-            id: staffRole.id,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.ReadMessageHistory,
-              PermissionFlagsBits.ManageChannels
-            ]
-          });
-        }
-
-        const ticket =
-          await guild.channels.create({
-            name: nomTicket,
-            type:
-              ChannelType.GuildText,
-            parent: categorie.id,
-            permissionOverwrites:
-              permissions
-          });
-
-        const fermer =
-          new ButtonBuilder()
-            .setCustomId(
-              "fermer_ticket"
-            )
-            .setLabel(
-              "🔒 Fermer le ticket"
-            )
-            .setStyle(
-              ButtonStyle.Danger
-            );
-
-        const row =
-          new ActionRowBuilder()
-            .addComponents(
-              fermer
-            );
-
-        await ticket.send({
-          content:
-            "🎫 **Ticket ouvert !**\n\n" +
-            `${interaction.user}, explique ton problème ici.\n` +
-            "Le Staff viendra te répondre dès que possible.",
-          components: [row]
-        });
-
-        return interaction.reply({
-          content:
-            `✅ Ton ticket a été créé : ${ticket}`,
+        // ⚡ RÉPONDRE IMMÉDIATEMENT À DISCORD
+        await interaction.deferReply({
           ephemeral: true
         });
+
+        try {
+          const guild =
+            interaction.guild;
+
+          // 🔐 Vérification permission du BOT
+          const botMember =
+            guild.members.me;
+
+          if (
+            !botMember ||
+            !botMember.permissions.has(
+              PermissionFlagsBits.ManageChannels
+            )
+          ) {
+            return interaction.editReply({
+              content:
+                "❌ Le bot n'a pas la permission **Gérer les salons**."
+            });
+          }
+
+          // 🎫 NOM DU TICKET
+          const nomTicket =
+            "ticket-" +
+            interaction.user.id;
+
+          // 🔎 TICKET EXISTANT
+          const ticketExistant =
+            guild.channels.cache.find(
+              (channel) =>
+                channel.name === nomTicket
+            );
+
+          if (ticketExistant) {
+            return interaction.editReply({
+              content:
+                `❌ Tu as déjà un ticket ouvert : ${ticketExistant}`
+            });
+          }
+
+          // 📁 CATÉGORIE
+          let categorie =
+            guild.channels.cache.find(
+              (channel) =>
+                channel.type ===
+                  ChannelType.GuildCategory &&
+                channel.name ===
+                  "🎫 TICKETS"
+            );
+
+          // ➕ CRÉER LA CATÉGORIE SI ABSENTE
+          if (!categorie) {
+            categorie =
+              await guild.channels.create({
+                name: "🎫 TICKETS",
+                type:
+                  ChannelType.GuildCategory
+              });
+          }
+
+          // 👮 RÔLE STAFF
+          const staffRole =
+            guild.roles.cache.find(
+              (role) =>
+                role.name.toLowerCase() ===
+                "staff"
+            );
+
+          // 🔒 PERMISSIONS
+          const permissions = [
+            {
+              id:
+                guild.roles.everyone.id,
+              deny: [
+                PermissionFlagsBits.ViewChannel
+              ]
+            },
+            {
+              id:
+                interaction.user.id,
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.ReadMessageHistory
+              ]
+            }
+          ];
+
+          if (staffRole) {
+            permissions.push({
+              id: staffRole.id,
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.ReadMessageHistory,
+                PermissionFlagsBits.ManageChannels
+              ]
+            });
+          }
+
+          // 🎫 CRÉATION DU TICKET
+          const ticket =
+            await guild.channels.create({
+              name: nomTicket,
+              type:
+                ChannelType.GuildText,
+              parent: categorie.id,
+              permissionOverwrites:
+                permissions
+            });
+
+          // 🔒 BOUTON FERMER
+          const fermer =
+            new ButtonBuilder()
+              .setCustomId(
+                "fermer_ticket"
+              )
+              .setLabel(
+                "🔒 Fermer le ticket"
+              )
+              .setStyle(
+                ButtonStyle.Danger
+              );
+
+          const row =
+            new ActionRowBuilder()
+              .addComponents(
+                fermer
+              );
+
+          // 💬 MESSAGE DU TICKET
+          await ticket.send({
+            content:
+              "🎫 **Ticket ouvert !**\n\n" +
+              `${interaction.user}, explique ton problème ici.\n` +
+              "Le Staff viendra te répondre dès que possible.",
+            components: [row]
+          });
+
+          // ✅ RÉPONSE FINALE
+          return interaction.editReply({
+            content:
+              `✅ Ton ticket a été créé : ${ticket}`
+          });
+
+        } catch (erreur) {
+
+          console.error(
+            "❌ ERREUR CRÉATION TICKET :",
+            erreur
+          );
+
+          return interaction.editReply({
+            content:
+              "❌ Impossible de créer le ticket.\n\n" +
+              "Vérifie que le bot possède la permission **Gérer les salons**."
+          }).catch(console.error);
+        }
       }
     }
 
