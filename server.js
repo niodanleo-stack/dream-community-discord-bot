@@ -20,6 +20,7 @@ app.listen(PORT, () => {
   console.log("Serveur web actif sur le port " + PORT);
 });
 
+// 🤖 CLIENT DISCORD
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -29,8 +30,34 @@ const client = new Client({
   ]
 });
 
+// ⚠️ SANCTIONS
+const avertissements = new Map();
+
+// 🚨 INSULTES
+const insultes = [
+  "connard",
+  "connasse",
+  "fdp",
+  "pute",
+  "salope",
+  "enculé",
+  "encule",
+  "nique",
+  "ntm",
+  "ta gueule",
+  "tg",
+  "ferme ta gueule",
+  "baise ta mère",
+  "baise ta mere",
+  "va te faire foutre",
+  "va te faire enculer",
+  "ftg"
+];
+
 client.once("clientReady", () => {
-  console.log("Dream Community connecte en tant que " + client.user.tag);
+  console.log(
+    "Dream Community connecte en tant que " + client.user.tag
+  );
 });
 
 // 👋 BIENVENUE
@@ -47,33 +74,25 @@ client.on("guildMemberAdd", async (member) => {
   ).catch(console.error);
 });
 
-// 📩 COMMANDES
+// 📩 MESSAGES
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
 
   const contenu = message.content.toLowerCase();
 
   // 🚨 ANTI-INSULTES
-  const insultes = [
-    "connard",
-    "connasse",
-    "fdp",
-    "pute",
-    "salope",
-    "enculé",
-    "encule",
-    "nique",
-    "ntm"
-  ];
+  const contientInsulte = insultes.some((mot) =>
+    contenu.includes(mot)
+  );
 
-  if (insultes.some((mot) => contenu.includes(mot))) {
+  if (contientInsulte) {
     try {
       await message.delete();
 
-      await message.channel.send(
-        "🚨 " +
-          message.author +
-          ", les insultes ne sont pas autorisées ici !"
+      await ajouterAvertissement(
+        message.member,
+        message.channel,
+        "Insulte / comportement irrespectueux"
       );
     } catch (erreur) {
       console.error(erreur);
@@ -87,10 +106,10 @@ client.on("messageCreate", async (message) => {
     return message.reply(
       "📜 **REGLEMENT — DREAM COMMUNITY**\n\n" +
         "🤝 Respect obligatoire\n" +
-        "🚫 Pas de harcelement\n" +
+        "🚫 Pas de harcèlement\n" +
         "🚫 Pas d'insultes ou menaces\n" +
         "🚫 Pas de spam\n" +
-        "🔞 Pas de contenu inapproprie\n" +
+        "🔞 Pas de contenu inapproprié\n" +
         "⚠️ Le Staff peut sanctionner en cas d'infraction."
     );
   }
@@ -99,13 +118,17 @@ client.on("messageCreate", async (message) => {
   if (contenu === "!dream") {
     return message.reply(
       "🌙 **DREAM COMMUNITY — SAISON 3** 🌙\n\n" +
-        "Une communaute pour discuter, partager et participer a des evenements !"
+        "Une communauté pour discuter, partager et participer à des événements !"
     );
   }
 
   // 🎫 PANNEAU TICKET
   if (contenu === "!ticket") {
-    if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
+    if (
+      !message.member.permissions.has(
+        PermissionFlagsBits.ManageChannels
+      )
+    ) {
       return message.reply("❌ Tu n'as pas la permission.");
     }
 
@@ -124,9 +147,13 @@ client.on("messageCreate", async (message) => {
     });
   }
 
-  // ⚠️ WARN
+  // ⚠️ WARN MANUEL
   if (contenu.startsWith("!warn ")) {
-    if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+    if (
+      !message.member.permissions.has(
+        PermissionFlagsBits.ModerateMembers
+      )
+    ) {
       return message.reply("❌ Tu n'as pas la permission.");
     }
 
@@ -138,19 +165,36 @@ client.on("messageCreate", async (message) => {
 
     const raison =
       message.content.split(" ").slice(2).join(" ") ||
-      "Aucune raison precisee.";
+      "Aucune raison précisée.";
+
+    await ajouterAvertissement(
+      membre,
+      message.channel,
+      raison
+    );
+
+    return;
+  }
+
+  // 📊 VOIR LES AVERTISSEMENTS
+  if (contenu === "!warns") {
+    const nombre =
+      avertissements.get(message.author.id) || 0;
 
     return message.reply(
-      "⚠️ **Avertissement**\n" +
-        membre +
-        " a reçu un avertissement.\n📝 Raison : " +
-        raison
+      "⚠️ **Tes avertissements : " +
+        nombre +
+        "/4**"
     );
   }
 
-  // 🔇 MUTE
+  // 🔇 MUTE MANUEL
   if (contenu.startsWith("!mute ")) {
-    if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+    if (
+      !message.member.permissions.has(
+        PermissionFlagsBits.ModerateMembers
+      )
+    ) {
       return message.reply("❌ Tu n'as pas la permission.");
     }
 
@@ -167,17 +211,25 @@ client.on("messageCreate", async (message) => {
       );
 
       return message.reply(
-        "🔇 " + membre + " a ete mis en silence pendant **10 minutes**."
+        "🔇 " +
+          membre +
+          " a été mis en silence pendant **10 minutes**."
       );
     } catch (erreur) {
       console.error(erreur);
-      return message.reply("❌ Impossible d'appliquer la sanction.");
+      return message.reply(
+        "❌ Impossible d'appliquer la sanction."
+      );
     }
   }
 
-  // 👢 KICK
+  // 👢 KICK MANUEL
   if (contenu.startsWith("!kick ")) {
-    if (!message.member.permissions.has(PermissionFlagsBits.KickMembers)) {
+    if (
+      !message.member.permissions.has(
+        PermissionFlagsBits.KickMembers
+      )
+    ) {
       return message.reply("❌ Tu n'as pas la permission.");
     }
 
@@ -191,17 +243,25 @@ client.on("messageCreate", async (message) => {
       await membre.kick("Sanction Dream Community");
 
       return message.reply(
-        "👢 " + membre.user.tag + " a ete expulse."
+        "👢 " +
+          membre.user.tag +
+          " a été expulsé."
       );
     } catch (erreur) {
       console.error(erreur);
-      return message.reply("❌ Impossible d'expulser ce membre.");
+      return message.reply(
+        "❌ Impossible d'expulser ce membre."
+      );
     }
   }
 
-  // 🚫 BAN
+  // 🚫 BAN MANUEL
   if (contenu.startsWith("!ban ")) {
-    if (!message.member.permissions.has(PermissionFlagsBits.BanMembers)) {
+    if (
+      !message.member.permissions.has(
+        PermissionFlagsBits.BanMembers
+      )
+    ) {
       return message.reply("❌ Tu n'as pas la permission.");
     }
 
@@ -217,14 +277,123 @@ client.on("messageCreate", async (message) => {
       });
 
       return message.reply(
-        "🚫 " + membre.user.tag + " a ete banni."
+        "🚫 " +
+          membre.user.tag +
+          " a été banni."
       );
     } catch (erreur) {
       console.error(erreur);
-      return message.reply("❌ Impossible de bannir ce membre.");
+      return message.reply(
+        "❌ Impossible de bannir ce membre."
+      );
     }
   }
 });
+
+// ⚠️ AJOUTER UN AVERTISSEMENT
+async function ajouterAvertissement(
+  membre,
+  channel,
+  raison
+) {
+  if (!membre) return;
+
+  const id = membre.id;
+
+  const nouveauNombre =
+    (avertissements.get(id) || 0) + 1;
+
+  avertissements.set(id, nouveauNombre);
+
+  // 1 WARN
+  if (nouveauNombre === 1) {
+    await channel.send(
+      "⚠️ " +
+        membre +
+        " reçoit son **1er avertissement**.\n" +
+        "📝 Raison : " +
+        raison +
+        "\n" +
+        "📊 Avertissements : **1/4**"
+    );
+
+    return;
+  }
+
+  // 2 WARNS → MUTE
+  if (nouveauNombre === 2) {
+    try {
+      await membre.timeout(
+        10 * 60 * 1000,
+        "2 avertissements - Dream Community"
+      );
+
+      await channel.send(
+        "🔇 " +
+          membre +
+          " atteint **2 avertissements**.\n" +
+          "Sanction : **mute 10 minutes**.\n" +
+          "📝 Raison : " +
+          raison
+      );
+    } catch (erreur) {
+      console.error(erreur);
+
+      await channel.send(
+        "⚠️ " +
+          membre +
+          " atteint **2 avertissements**, mais le mute n'a pas pu être appliqué."
+      );
+    }
+
+    return;
+  }
+
+  // 3 WARNS → KICK
+  if (nouveauNombre === 3) {
+    await channel.send(
+      "👢 " +
+        membre +
+        " atteint **3 avertissements**.\n" +
+        "Sanction : **expulsion du serveur**.\n" +
+        "📝 Raison : " +
+        raison
+    );
+
+    try {
+      await membre.kick(
+        "3 avertissements - Dream Community"
+      );
+    } catch (erreur) {
+      console.error(erreur);
+    }
+
+    return;
+  }
+
+  // 4 WARNS → BAN
+  if (nouveauNombre >= 4) {
+    await channel.send(
+      "🚫 " +
+        membre +
+        " atteint **4 avertissements**.\n" +
+        "Sanction : **bannissement du serveur**.\n" +
+        "📝 Raison : " +
+        raison
+    );
+
+    try {
+      await membre.ban({
+        reason:
+          "4 avertissements - Dream Community"
+      });
+    } catch (erreur) {
+      console.error(erreur);
+    }
+
+    avertissements.delete(id);
+  }
+}
 
 // 🎫 BOUTONS DES TICKETS
 client.on("interactionCreate", async (interaction) => {
@@ -237,12 +406,15 @@ client.on("interactionCreate", async (interaction) => {
     const ticketExistant = guild.channels.cache.find(
       (channel) =>
         channel.name ===
-        "ticket-" + interaction.user.username.toLowerCase()
+        "ticket-" +
+          interaction.user.username.toLowerCase()
     );
 
     if (ticketExistant) {
       return interaction.reply({
-        content: "❌ Tu as déjà un ticket ouvert : " + ticketExistant,
+        content:
+          "❌ Tu as déjà un ticket ouvert : " +
+          ticketExistant,
         ephemeral: true
       });
     }
@@ -261,7 +433,8 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     const staffRole = guild.roles.cache.find(
-      (role) => role.name.toLowerCase() === "staff"
+      (role) =>
+        role.name.toLowerCase() === "staff"
     );
 
     const permissions = [
@@ -292,7 +465,9 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     const ticket = await guild.channels.create({
-      name: "ticket-" + interaction.user.username.toLowerCase(),
+      name:
+        "ticket-" +
+        interaction.user.username.toLowerCase(),
       type: ChannelType.GuildText,
       parent: categorie.id,
       permissionOverwrites: permissions
@@ -303,7 +478,8 @@ client.on("interactionCreate", async (interaction) => {
       .setLabel("🔒 Fermer le ticket")
       .setStyle(ButtonStyle.Danger);
 
-    const row = new ActionRowBuilder().addComponents(fermer);
+    const row = new ActionRowBuilder()
+      .addComponents(fermer);
 
     await ticket.send({
       content:
@@ -315,7 +491,9 @@ client.on("interactionCreate", async (interaction) => {
     });
 
     return interaction.reply({
-      content: "✅ Ton ticket a été créé : " + ticket,
+      content:
+        "✅ Ton ticket a été créé : " +
+        ticket,
       ephemeral: true
     });
   }
@@ -328,15 +506,20 @@ client.on("interactionCreate", async (interaction) => {
       )
     ) {
       return interaction.reply({
-        content: "❌ Seul le Staff peut fermer ce ticket.",
+        content:
+          "❌ Seul le Staff peut fermer ce ticket.",
         ephemeral: true
       });
     }
 
-    await interaction.reply("🔒 Fermeture du ticket...");
+    await interaction.reply(
+      "🔒 Fermeture du ticket..."
+    );
 
     setTimeout(() => {
-      interaction.channel.delete().catch(console.error);
+      interaction.channel
+        .delete()
+        .catch(console.error);
     }, 2000);
   }
 });
