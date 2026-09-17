@@ -7,7 +7,8 @@ const {
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
-  EmbedBuilder
+  EmbedBuilder,
+  StringSelectMenuBuilder
 } = require("discord.js");
 
 const app = express();
@@ -221,23 +222,42 @@ client.on("messageCreate", async (message) => {
       );
     }
 
-    const bouton = new ButtonBuilder()
-      .setCustomId("creer_ticket")
-      .setLabel("🎫 Créer un ticket")
-      .setStyle(ButtonStyle.Primary);
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId("menu_ticket")
+      .setPlaceholder("🎫 Que souhaites-tu faire ?")
+      .addOptions(
+        {
+          label: "Devenir Admin",
+          description: "Découvrir comment rejoindre l'administration",
+          value: "devenir_admin",
+          emoji: "👑"
+        },
+        {
+          label: "Site Web",
+          description: "Accéder au site officiel de Dream Community",
+          value: "site_web",
+          emoji: "🌐"
+        },
+        {
+          label: "Contacter le Support",
+          description: "Créer un ticket avec le Staff",
+          value: "contacter_support",
+          emoji: "🛟"
+        }
+      );
 
     const row = new ActionRowBuilder()
-      .addComponents(bouton);
+      .addComponents(menu);
 
     return message.channel.send({
       content:
-        "🎫 **SUPPORT DREAM COMMUNITY**\n\n" +
-        "Besoin d'aide ? Clique sur le bouton ci-dessous " +
-        "pour créer un ticket avec le Staff.",
+        "🎫 **DREAM COMMUNITY — SUPPORT**\n\n" +
+        "Bienvenue dans le centre de support ! 🌙\n\n" +
+        "Sélectionne une option dans le menu ci-dessous :",
       components: [row]
     });
   }
-
+  
   // ⚠️ WARN MANUEL
   if (contenu.startsWith("!warn ")) {
     if (
@@ -275,7 +295,7 @@ client.on("messageCreate", async (message) => {
     return;
   }
 
-  // 📊 VOIR LES WARNS
+  // 📊 WARNS
   if (contenu === "!warns") {
     const nombre =
       avertissements.get(message.author.id) || 0;
@@ -285,7 +305,7 @@ client.on("messageCreate", async (message) => {
     );
   }
 
-  // 🔇 MUTE MANUEL
+  // 🔇 MUTE
   if (contenu.startsWith("!mute ")) {
     if (
       !message.member.permissions.has(
@@ -324,7 +344,7 @@ client.on("messageCreate", async (message) => {
     }
   }
 
-  // 👢 KICK MANUEL
+  // 👢 KICK
   if (contenu.startsWith("!kick ")) {
     if (
       !message.member.permissions.has(
@@ -362,7 +382,7 @@ client.on("messageCreate", async (message) => {
     }
   }
 
-  // 🚫 BAN MANUEL
+  // 🚫 BAN
   if (contenu.startsWith("!ban ")) {
     if (
       !message.member.permissions.has(
@@ -420,7 +440,6 @@ async function ajouterAvertissement(
     nouveauNombre
   );
 
-  // 1 WARN
   if (nouveauNombre === 1) {
     await channel.send(
       `⚠️ ${membre} reçoit son **1er avertissement**.\n` +
@@ -431,7 +450,6 @@ async function ajouterAvertissement(
     return;
   }
 
-  // 2 WARNS
   if (nouveauNombre === 2) {
     await channel.send(
       `⚠️ ${membre} reçoit son **2e avertissement**.\n` +
@@ -442,7 +460,6 @@ async function ajouterAvertissement(
     return;
   }
 
-  // 3 WARNS → SUSPENSION
   if (nouveauNombre === 3) {
     try {
       await membre.timeout(
@@ -468,139 +485,181 @@ async function ajouterAvertissement(
   }
 }
 
-// 🎫 BOUTONS DES TICKETS
+// 🎛️ INTERACTIONS
 client.on(
   "interactionCreate",
   async (interaction) => {
-    if (!interaction.isButton()) return;
 
-    // 🎫 CRÉER UN TICKET
+    // 📋 MENU DU PANNEAU TICKET
     if (
-      interaction.customId ===
-      "creer_ticket"
+      interaction.isStringSelectMenu() &&
+      interaction.customId === "menu_ticket"
     ) {
-      const guild = interaction.guild;
 
-      const nomTicket =
-        "ticket-" +
-        interaction.user.username
-          .toLowerCase();
-
-      const ticketExistant =
-        guild.channels.cache.find(
-          (channel) =>
-            channel.name === nomTicket
-        );
-
-      if (ticketExistant) {
+      // 👑 DEVENIR ADMIN
+      if (
+        interaction.values[0] ===
+        "devenir_admin"
+      ) {
         return interaction.reply({
           content:
-            `❌ Tu as déjà un ticket ouvert : ${ticketExistant}`,
+            "👑 **DEVENIR ADMIN — DREAM COMMUNITY**\n\n" +
+            "Tu souhaites rejoindre l'administration ?\n\n" +
+            "📋 Une candidature peut être demandée.\n" +
+            "🤝 Le Staff étudiera ta demande.\n\n" +
+            "🛟 Si tu as besoin d'informations supplémentaires, choisis **Contacter le Support**.",
           ephemeral: true
         });
       }
 
-      let categorie =
-        guild.channels.cache.find(
-          (channel) =>
-            channel.type ===
-              ChannelType.GuildCategory &&
-            channel.name === "🎫 TICKETS"
-        );
+      // 🌐 SITE WEB
+      if (
+        interaction.values[0] ===
+        "site_web"
+      ) {
+        return interaction.reply({
+          content:
+            "🌐 **SITE WEB DREAM COMMUNITY**\n\n" +
+            "Accède au site ici :\n" +
+            "http://6aaae97cbf7b6.site123.me/",
+          ephemeral: true
+        });
+      }
 
-      if (!categorie) {
-        categorie =
-          await guild.channels.create({
-            name: "🎫 TICKETS",
-            type:
-              ChannelType.GuildCategory
+      // 🛟 CONTACTER SUPPORT
+      if (
+        interaction.values[0] ===
+        "contacter_support"
+      ) {
+        const guild =
+          interaction.guild;
+
+        const nomTicket =
+          "ticket-" +
+          interaction.user.username
+            .toLowerCase();
+
+        const ticketExistant =
+          guild.channels.cache.find(
+            (channel) =>
+              channel.name ===
+              nomTicket
+          );
+
+        if (ticketExistant) {
+          return interaction.reply({
+            content:
+              `❌ Tu as déjà un ticket ouvert : ${ticketExistant}`,
+            ephemeral: true
           });
-      }
-
-      const staffRole =
-        guild.roles.cache.find(
-          (role) =>
-            role.name.toLowerCase() ===
-            "staff"
-        );
-
-      const permissions = [
-        {
-          id:
-            guild.roles.everyone.id,
-          deny: [
-            PermissionFlagsBits.ViewChannel
-          ]
-        },
-        {
-          id: interaction.user.id,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ReadMessageHistory
-          ]
         }
-      ];
 
-      if (staffRole) {
-        permissions.push({
-          id: staffRole.id,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ReadMessageHistory,
-            PermissionFlagsBits.ManageChannels
-          ]
+        let categorie =
+          guild.channels.cache.find(
+            (channel) =>
+              channel.type ===
+                ChannelType.GuildCategory &&
+              channel.name ===
+                "🎫 TICKETS"
+          );
+
+        if (!categorie) {
+          categorie =
+            await guild.channels.create({
+              name: "🎫 TICKETS",
+              type:
+                ChannelType.GuildCategory
+            });
+        }
+
+        const staffRole =
+          guild.roles.cache.find(
+            (role) =>
+              role.name.toLowerCase() ===
+              "staff"
+          );
+
+        const permissions = [
+          {
+            id:
+              guild.roles.everyone.id,
+            deny: [
+              PermissionFlagsBits.ViewChannel
+            ]
+          },
+          {
+            id: interaction.user.id,
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory
+            ]
+          }
+        ];
+
+        if (staffRole) {
+          permissions.push({
+            id: staffRole.id,
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+              PermissionFlagsBits.ManageChannels
+            ]
+          });
+        }
+
+        const ticket =
+          await guild.channels.create({
+            name: nomTicket,
+            type:
+              ChannelType.GuildText,
+            parent: categorie.id,
+            permissionOverwrites:
+              permissions
+          });
+
+        const fermer =
+          new ButtonBuilder()
+            .setCustomId(
+              "fermer_ticket"
+            )
+            .setLabel(
+              "🔒 Fermer le ticket"
+            )
+            .setStyle(
+              ButtonStyle.Danger
+            );
+
+        const row =
+          new ActionRowBuilder()
+            .addComponents(
+              fermer
+            );
+
+        await ticket.send({
+          content:
+            "🎫 **Ticket ouvert !**\n\n" +
+            `${interaction.user}, explique ton problème ici.\n` +
+            "Le Staff viendra te répondre dès que possible.",
+          components: [row]
+        });
+
+        return interaction.reply({
+          content:
+            `✅ Ton ticket a été créé : ${ticket}`,
+          ephemeral: true
         });
       }
-
-      const ticket =
-        await guild.channels.create({
-          name: nomTicket,
-          type: ChannelType.GuildText,
-          parent: categorie.id,
-          permissionOverwrites:
-            permissions
-        });
-
-      const fermer =
-        new ButtonBuilder()
-          .setCustomId(
-            "fermer_ticket"
-          )
-          .setLabel(
-            "🔒 Fermer le ticket"
-          )
-          .setStyle(
-            ButtonStyle.Danger
-          );
-
-      const row =
-        new ActionRowBuilder()
-          .addComponents(
-            fermer
-          );
-
-      await ticket.send({
-        content:
-          "🎫 **Ticket ouvert !**\n\n" +
-          `${interaction.user}, explique ton problème ici.\n` +
-          "Le Staff viendra te répondre dès que possible.",
-        components: [row]
-      });
-
-      return interaction.reply({
-        content:
-          `✅ Ton ticket a été créé : ${ticket}`,
-        ephemeral: true
-      });
     }
 
     // 🔒 FERMER UN TICKET
     if (
+      interaction.isButton() &&
       interaction.customId ===
-      "fermer_ticket"
+        "fermer_ticket"
     ) {
+
       if (
         !interaction.member.permissions.has(
           PermissionFlagsBits.ManageChannels
