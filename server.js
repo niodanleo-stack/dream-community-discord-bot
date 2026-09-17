@@ -42,6 +42,22 @@ const client = new Client({
 });
 
 // =====================================================
+// ⚙️ CONFIGURATION
+// =====================================================
+
+const CHANNEL_BIENVENUE =
+  "📢・𝗔𝗻𝗻𝗼𝗻𝗰𝗲𝘀-𝗢𝗳𝗳𝗶𝗰𝗶𝗲𝗹𝗹𝗲𝘀";
+
+const CHANNEL_DECOMPTE =
+  "🔢・décompte";
+
+const CHANNEL_SUGGESTIONS =
+  "💡・suggestions";
+
+const ROLE_AUTOMATIQUE =
+  "Citoyen";
+
+// =====================================================
 // ⚠️ AVERTISSEMENTS
 // =====================================================
 
@@ -80,7 +96,6 @@ function xpPourNiveau(niveau) {
 }
 
 function calculerNiveau(xp) {
-
   let niveau = 1;
   let xpNecessaire = 0;
 
@@ -88,7 +103,6 @@ function calculerNiveau(xp) {
     xp >=
     xpNecessaire + xpPourNiveau(niveau)
   ) {
-
     xpNecessaire +=
       xpPourNiveau(niveau);
 
@@ -105,20 +119,12 @@ function calculerNiveau(xp) {
 }
 
 function sauvegarderXP() {
-
   try {
-
     fs.writeFileSync(
       XP_FILE,
-      JSON.stringify(
-        xpData,
-        null,
-        2
-      )
+      JSON.stringify(xpData, null, 2)
     );
-
   } catch (erreur) {
-
     console.error(
       "❌ Erreur sauvegarde XP :",
       erreur
@@ -127,7 +133,6 @@ function sauvegarderXP() {
 }
 
 async function ajouterXP(member) {
-
   if (!member || member.user.bot)
     return;
 
@@ -160,7 +165,8 @@ async function ajouterXP(member) {
       xpData[id].xp
     ).niveau;
 
-  xpData[id].xp += XP_PAR_MESSAGE;
+  xpData[id].xp +=
+    XP_PAR_MESSAGE;
 
   const nouveauNiveau =
     calculerNiveau(
@@ -173,19 +179,15 @@ async function ajouterXP(member) {
     nouveauNiveau >
     ancienNiveau
   ) {
-
     try {
-
       await member.guild.systemChannel?.send(
         `🎉 **Nouveau niveau !** 🎉\n\n` +
         `Bravo ${member} ! 🌙✨\n` +
         `Tu viens d'atteindre le **niveau ${nouveauNiveau}** ! 💫`
       );
-
     } catch (erreur) {
-
       console.error(
-        "Erreur message level up :",
+        "Erreur level up :",
         erreur
       );
     }
@@ -208,13 +210,9 @@ let countingData = {
 };
 
 try {
-
   if (
-    fs.existsSync(
-      COUNTING_FILE
-    )
+    fs.existsSync(COUNTING_FILE)
   ) {
-
     countingData =
       JSON.parse(
         fs.readFileSync(
@@ -223,9 +221,7 @@ try {
         )
       );
   }
-
 } catch (erreur) {
-
   console.error(
     "❌ Impossible de charger counting.json :",
     erreur
@@ -233,7 +229,6 @@ try {
 }
 
 function dateFrance() {
-
   return new Intl.DateTimeFormat(
     "fr-FR",
     {
@@ -246,7 +241,6 @@ function dateFrance() {
 }
 
 function verifierNouveauJour() {
-
   const aujourdHui =
     dateFrance();
 
@@ -254,7 +248,6 @@ function verifierNouveauJour() {
     countingData.lastDate !==
     aujourdHui
   ) {
-
     countingData.participants = {};
     countingData.lastDate =
       aujourdHui;
@@ -264,9 +257,7 @@ function verifierNouveauJour() {
 }
 
 function sauvegarderCounting() {
-
   try {
-
     fs.writeFileSync(
       COUNTING_FILE,
       JSON.stringify(
@@ -275,9 +266,7 @@ function sauvegarderCounting() {
         2
       )
     );
-
   } catch (erreur) {
-
     console.error(
       "❌ Erreur sauvegarde décompte :",
       erreur
@@ -310,35 +299,87 @@ const insultes = [
 ];
 
 // =====================================================
-// 👋 BIENVENUE
+// 🤖 BOT PRÊT
 // =====================================================
 
 client.once(
   "clientReady",
   () => {
-
     console.log(
       "🌙 Dream Community connecté en tant que " +
       client.user.tag
     );
+
+    client.user.setActivity(
+      "Dream Community 🌙",
+      {
+        type: 3
+      }
+    );
   }
 );
+
+// =====================================================
+// 👋 BIENVENUE + 🎭 RÔLE AUTOMATIQUE
+// =====================================================
 
 client.on(
   "guildMemberAdd",
   async member => {
 
+    // 🎭 Rôle automatique
+    const role =
+      member.guild.roles.cache.find(
+        role =>
+          role.name ===
+          ROLE_AUTOMATIQUE
+      );
+
+    if (role) {
+      await member.roles.add(
+        role
+      ).catch(erreur => {
+        console.error(
+          "❌ Impossible d'ajouter le rôle :",
+          erreur
+        );
+      });
+    }
+
+    // 📢 Salon de bienvenue
     const channel =
-      member.guild.systemChannel;
+      member.guild.channels.cache.find(
+        channel =>
+          channel.name ===
+            CHANNEL_BIENVENUE &&
+          channel.isTextBased()
+      );
 
     if (!channel)
       return;
 
-    await channel.send(
-      `👋 **Bienvenue ${member} !** 🌙✨\n\n` +
-      `Nous sommes heureux de t'accueillir dans **Dream Community** ! 💫\n` +
-      `Prends ton temps, découvre la communauté et amuse-toi bien. 🫶`
-    ).catch(console.error);
+    const embed =
+      new EmbedBuilder()
+        .setTitle(
+          "🌙 Bienvenue dans Dream Community !"
+        )
+        .setDescription(
+          `👋 Bienvenue ${member} !\n\n` +
+          `Nous sommes très heureux de t'accueillir parmi nous. ✨\n\n` +
+          `💫 Prends le temps de découvrir la communauté,\n` +
+          `🤝 rencontre les autres membres,\n` +
+          `🌙 et surtout, profite de ton aventure !\n\n` +
+          `📜 Pense également à consulter le règlement.`
+        )
+        .setColor(0x9b59b6)
+        .setThumbnail(
+          member.user.displayAvatarURL()
+        )
+        .setTimestamp();
+
+    await channel.send({
+      embeds: [embed]
+    }).catch(console.error);
   }
 );
 
@@ -363,8 +404,7 @@ client.on(
     // =================================================
 
     const messageNormalise =
-      message.content
-        .toLowerCase();
+      message.content.toLowerCase();
 
     const contientInsulte =
       insultes.some(
@@ -397,7 +437,7 @@ client.on(
 
     if (
       message.channel.name ===
-      "🔢・décompte"
+      CHANNEL_DECOMPTE
     ) {
 
       const nombre =
@@ -405,7 +445,6 @@ client.on(
           message.content.trim()
         );
 
-      // Ignore les messages non numériques
       if (
         !Number.isInteger(nombre)
       ) {
@@ -415,7 +454,6 @@ client.on(
       const utilisateur =
         message.author.id;
 
-      // Une seule participation par jour
       if (
         countingData.participants[
           utilisateur
@@ -424,8 +462,7 @@ client.on(
 
         await message.reply(
           `🌙 **Tu as déjà participé aujourd'hui !**\n\n` +
-          `✨ Merci pour ta participation. ` +
-          `Tu pourras retenter ta chance demain ! 💫`
+          `✨ Tu pourras retenter ta chance demain. 💫`
         ).catch(() => {});
 
         return;
@@ -434,10 +471,7 @@ client.on(
       const attendu =
         countingData.count + 1;
 
-      // =================================================
-      // ✅ BON NOMBRE
-      // =================================================
-
+      // ✅ Bon nombre
       if (
         nombre === attendu
       ) {
@@ -449,7 +483,6 @@ client.on(
           utilisateur
         ] = true;
 
-        // Nouveau record
         if (
           countingData.count >
           countingData.record
@@ -461,12 +494,15 @@ client.on(
           countingData.recordUserId =
             utilisateur;
 
-          await message.react("🏆")
-            .catch(() => {});
+          await message.react(
+            "🏆"
+          ).catch(() => {});
+
         } else {
 
-          await message.react("✅")
-            .catch(() => {});
+          await message.react(
+            "✅"
+          ).catch(() => {});
         }
 
         sauvegarderCounting();
@@ -474,18 +510,16 @@ client.on(
         return;
       }
 
-      // =================================================
-      // ❌ MAUVAIS NOMBRE
-      // =================================================
-
+      // ❌ Mauvais nombre
       countingData.participants[
         utilisateur
       ] = true;
 
       countingData.count = 0;
 
-      await message.react("💫")
-        .catch(() => {});
+      await message.react(
+        "💫"
+      ).catch(() => {});
 
       await message.reply(
         `🌙 **Oups !** Ce n'était pas le bon chiffre.\n\n` +
@@ -500,16 +534,163 @@ client.on(
     }
 
     // =================================================
+    // 💡 SUGGESTIONS
+    // =================================================
+
+    if (
+      contenu.startsWith(
+        "!suggest "
+      )
+    ) {
+
+      const suggestion =
+        message.content
+          .slice(9)
+          .trim();
+
+      if (!suggestion) {
+
+        return message.reply(
+          "💡 Écris ta suggestion après `!suggest` ✨"
+        );
+      }
+
+      const salon =
+        message.guild.channels.cache.find(
+          channel =>
+            channel.name ===
+              CHANNEL_SUGGESTIONS &&
+            channel.isTextBased()
+        );
+
+      if (!salon) {
+
+        return message.reply(
+          `🌙 Le salon **${CHANNEL_SUGGESTIONS}** n'existe pas encore.`
+        );
+      }
+
+      const embed =
+        new EmbedBuilder()
+          .setTitle(
+            "💡 Nouvelle suggestion"
+          )
+          .setDescription(
+            suggestion
+          )
+          .addFields({
+            name:
+              "👤 Proposée par",
+            value:
+              `${message.author}`
+          })
+          .setColor(0x3498db)
+          .setTimestamp();
+
+      const suggestionMessage =
+        await salon.send({
+          embeds: [embed]
+        });
+
+      await suggestionMessage.react(
+        "👍"
+      ).catch(() => {});
+
+      await suggestionMessage.react(
+        "👎"
+      ).catch(() => {});
+
+      return message.reply(
+        "💫 Merci pour ta suggestion ! Elle a bien été transmise à la communauté."
+      );
+    }
+
+    // =================================================
+    // 📊 INFOS SERVEUR
+    // =================================================
+
+    if (
+      contenu ===
+      "!serverinfo"
+    ) {
+
+      const embed =
+        new EmbedBuilder()
+          .setTitle(
+            "🌙 Dream Community"
+          )
+          .setDescription(
+            "Voici quelques informations sur notre serveur ✨"
+          )
+          .addFields(
+            {
+              name:
+                "👥 Membres",
+              value:
+                `${message.guild.memberCount}`,
+              inline: true
+            },
+            {
+              name:
+                "💬 Salons",
+              value:
+                `${message.guild.channels.cache.size}`,
+              inline: true
+            },
+            {
+              name:
+                "🎭 Rôles",
+              value:
+                `${message.guild.roles.cache.size}`,
+              inline: true
+            }
+          )
+          .setColor(0x9b59b6)
+          .setTimestamp();
+
+      return message.reply({
+        embeds: [embed]
+      });
+    }
+
+    // =================================================
+    // 🆘 AIDE
+    // =================================================
+
+    if (
+      contenu === "!help"
+    ) {
+
+      return message.reply(
+        `🌙 **DreamBot — Centre d'aide** ✨\n\n` +
+
+        `⭐ **XP**\n` +
+        `\`!rank\` • \`!leaderboard\`\n\n` +
+
+        `🔢 **Décompte**\n` +
+        `\`!compteur\` • \`!record\`\n\n` +
+
+        `💡 **Communauté**\n` +
+        `\`!suggest <idée>\`\n` +
+        `\`!serverinfo\`\n\n` +
+
+        `🎫 **Support**\n` +
+        `\`!ticket\`\n\n` +
+
+        `📜 **Informations**\n` +
+        `\`!reglement\` • \`!dream\`\n\n` +
+
+        `✨ D'autres fonctionnalités arriveront bientôt !`
+      );
+    }
+
+    // =================================================
     // ⭐ XP
     // =================================================
 
     await ajouterXP(
       message.member
     );
-
-    // =================================================
-    // 📜 RÈGLEMENT
-    // =================================================
 
     if (
       contenu === "!reglement"
@@ -537,7 +718,7 @@ client.on(
       return message.reply(
         `🌙 **Dream Community** ✨\n\n` +
         `Bienvenue dans notre communauté ! 💫\n` +
-        `Profite des événements, des discussions et de toutes les nouveautés. 🫶`
+        `Profite des événements, des discussions et des nouveautés. 🫶`
       );
     }
 
@@ -570,7 +751,6 @@ client.on(
       if (
         countingData.recordUserId
       ) {
-
         recordeur =
           `<@${countingData.recordUserId}>`;
       }
@@ -578,8 +758,7 @@ client.on(
       return message.reply(
         `🏆 **Record du décompte**\n\n` +
         `✨ Record : **${countingData.record}**\n` +
-        `🌙 Réalisé par : ${recordeur}\n\n` +
-        `💫 Peut-être que le prochain record sera encore plus grand !`
+        `🌙 Réalisé par : ${recordeur}`
       );
     }
 
@@ -675,7 +854,7 @@ client.on(
     }
 
     // =================================================
-    // 🚨 SIGNALEMENT
+    // 🚨 REPORT
     // =================================================
 
     if (
@@ -690,7 +869,7 @@ client.on(
       if (!membre) {
 
         return message.reply(
-          "🌙 Utilise `!report @membre raison` pour envoyer un signalement."
+          "🌙 Utilise `!report @membre raison`."
         );
       }
 
@@ -729,22 +908,23 @@ client.on(
           .setColor(0xffaa00)
           .addFields(
             {
-              name: "👤 Membre signalé",
+              name:
+                "👤 Membre signalé",
               value:
                 `${membre}`,
               inline: true
             },
             {
-              name: "📝 Raison",
+              name:
+                "📝 Raison",
               value:
-                raison,
-              inline: false
+                raison
             },
             {
-              name: "📨 Signalé par",
+              name:
+                "📨 Signalé par",
               value:
-                `${message.author}`,
-              inline: true
+                `${message.author}`
             }
           )
           .setTimestamp();
@@ -806,9 +986,7 @@ client.on(
 
       const row =
         new ActionRowBuilder()
-          .addComponents(
-            menu
-          );
+          .addComponents(menu);
 
       return message.reply({
         content:
@@ -828,14 +1006,13 @@ client.on(
     ) {
 
       if (
-        !message.member.permissions
-          .has(
-            PermissionFlagsBits.ModerateMembers
-          )
+        !message.member.permissions.has(
+          PermissionFlagsBits.ModerateMembers
+        )
       ) {
 
         return message.reply(
-          "🌙 Tu n'as pas les permissions nécessaires pour utiliser cette commande."
+          "🌙 Tu n'as pas les permissions nécessaires."
         );
       }
 
@@ -892,10 +1069,9 @@ client.on(
     ) {
 
       if (
-        !message.member.permissions
-          .has(
-            PermissionFlagsBits.ModerateMembers
-          )
+        !message.member.permissions.has(
+          PermissionFlagsBits.ModerateMembers
+        )
       ) {
 
         return message.reply(
@@ -943,10 +1119,9 @@ client.on(
     ) {
 
       if (
-        !message.member.permissions
-          .has(
-            PermissionFlagsBits.KickMembers
-          )
+        !message.member.permissions.has(
+          PermissionFlagsBits.KickMembers
+        )
       ) {
 
         return message.reply(
@@ -993,10 +1168,9 @@ client.on(
     ) {
 
       if (
-        !message.member.permissions
-          .has(
-            PermissionFlagsBits.BanMembers
-          )
+        !message.member.permissions.has(
+          PermissionFlagsBits.BanMembers
+        )
       ) {
 
         return message.reply(
@@ -1109,22 +1283,18 @@ async function ajouterAvertissement(
 
     } catch (erreur) {
 
-      console.error(
-        erreur
-      );
+      console.error(erreur);
 
       await channel.send(
         `🌙 ${membre} atteint **3 avertissements**.\n\n` +
         `💫 Je n'ai pas réussi à appliquer automatiquement la suspension.`
       );
     }
-
-    return;
   }
 }
 
 // =====================================================
-// 🎫 INTERACTIONS DES TICKETS
+// 🎫 INTERACTIONS TICKETS
 // =====================================================
 
 client.on(
@@ -1140,7 +1310,6 @@ client.on(
       const choix =
         interaction.values[0];
 
-      // 👑 ADMIN
       if (
         choix ===
         "devenir_admin"
@@ -1150,12 +1319,11 @@ client.on(
           content:
             `👑 **Devenir Admin**\n\n` +
             `🌙 Merci pour ton intérêt !\n` +
-            `Les candidatures et recrutements sont étudiés par l'équipe Dream Community. ✨`,
+            `Les candidatures sont étudiées par l'équipe Dream Community. ✨`,
           ephemeral: true
         });
       }
 
-      // 🌐 SITE
       if (
         choix ===
         "site_web"
@@ -1163,31 +1331,25 @@ client.on(
 
         return interaction.reply({
           content:
-            `🌐 **Site officiel**\n\n` +
-            `✨ Tu peux retrouver Dream Community ici :\n` +
-            `http://6aaae97cbf7b6.site123.me/`,
+            `🌐 **Site Web Dream Community**\n\n` +
+            `✨ http://6aaae97cbf7b6.site123.me/`,
           ephemeral: true
         });
       }
 
-      // 🛟 SUPPORT
       if (
         choix ===
         "contacter_support"
       ) {
 
-        await interaction
-          .deferReply({
-            ephemeral: true
-          });
+        await interaction.deferReply({
+          ephemeral: true
+        });
 
         try {
 
           const guild =
             interaction.guild;
-
-          const membre =
-            interaction.member;
 
           if (
             !guild.members.me.permissions.has(
@@ -1323,12 +1485,12 @@ client.on(
         } catch (erreur) {
 
           console.error(
-            "❌ ERREUR CRÉATION TICKET :",
+            "❌ ERREUR TICKET :",
             erreur
           );
 
           return interaction.editReply(
-            "💫 Une petite erreur est survenue lors de la création du ticket."
+            "💫 Une petite erreur est survenue."
           );
         }
       }
